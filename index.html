@@ -47,13 +47,13 @@
         .nice-input:focus { border-color: #0d9488; box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1); }
 
         .file-upload-wrapper {
-            position: relative; width: 100%; height: 120px; border: 2px dashed #cbd5e1;
-            border-radius: 16px; display: flex; align-items: center; justify-content: center;
+            position: relative; width: 100%; height: 150px; border: 2px dashed #cbd5e1;
+            border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center;
             background: #f8fafc; color: #64748b; cursor: pointer; overflow: hidden;
             transition: all 0.3s; margin-bottom: 15px;
         }
-        .file-upload-wrapper input { position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-        .preview-img { width: 100%; height: 100%; object-fit: cover; display: none; }
+        .file-upload-wrapper input { position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
+        .preview-img { width: 100%; height: 100%; object-fit: cover; display: none; position: absolute; top: 0; left: 0; z-index: 5; }
 
         .btn-primary {
             background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
@@ -97,7 +97,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithCredential } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, onSnapshot, updateDoc, increment, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -116,6 +116,7 @@
 
         let currentUser = null;
         let userDoc = null;
+        let timerInt = null;
 
         function showToast(msg, type = 'success') {
             const container = document.getElementById('toast-container');
@@ -127,7 +128,7 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
-        // --- NEW: IMAGE COMPRESSOR (Fixes the upload issue) ---
+        // --- IMAGE COMPRESSION UTILS ---
         const compressImage = (file) => {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -137,16 +138,12 @@
                     img.src = event.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        // Limit width to 800px (Good enough for slips, small enough for Firestore)
-                        const maxWidth = 800;
+                        const maxWidth = 800; 
                         const scaleSize = maxWidth / img.width;
                         canvas.width = maxWidth;
                         canvas.height = img.height * scaleSize;
-                        
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        
-                        // Convert to JPEG at 70% quality
                         resolve(canvas.toDataURL('image/jpeg', 0.7)); 
                     }
                 }
@@ -161,7 +158,9 @@
                     const img = document.getElementById(imgId);
                     img.src = e.target.result;
                     img.style.display = 'block';
-                    input.parentElement.querySelector('div').style.display = 'none';
+                    // Hide the text/icon behind the image
+                    const textDiv = input.parentElement.querySelector('div');
+                    if(textDiv) textDiv.style.display = 'none';
                 }
                 reader.readAsDataURL(input.files[0]);
             }
@@ -169,7 +168,30 @@
 
         window.closeModal = () => document.getElementById('app-modal').classList.remove('active');
 
-        // --- AUTH ---
+        // --- AUTH & NATIVE GOOGLE LOGIN ---
+        window.handleGoogle = () => {
+            // ඇප් එක හරහා ලොග් වෙන්න (Native Login)
+            if (window.Android && window.Android.triggerGoogleLogin) {
+                window.Android.triggerGoogleLogin();
+            } else {
+                // වෙබ් එකෙන් නම් (Testing Only)
+                signInWithPopup(auth, new GoogleAuthProvider()).catch(e => showToast(e.message, 'error'));
+            }
+        }
+
+        // ඇප් එකෙන් Token එක ලැබුණු පසු
+        window.onNativeGoogleLogin = async (idToken) => {
+            try {
+                const credential = GoogleAuthProvider.credential(idToken);
+                await signInWithCredential(auth, credential);
+            } catch (error) {
+                showToast("Native Login Error: " + error.message, 'error');
+            }
+        }
+
+        window.GoogleAuthProvider = GoogleAuthProvider;
+        window.signInWithCredential = signInWithCredential;
+
         onAuthStateChanged(auth, async (user) => {
             const loading = document.getElementById('loading-screen');
             if (user) {
@@ -186,11 +208,12 @@
                 }
             } else {
                 renderLogin();
+                if(timerInt) clearInterval(timerInt); // Logout එකේදී Timer නවත්වන්න
             }
             loading.style.display = 'none';
         });
 
-        // --- TIMER & JOB LOGIC ---
+        // --- TIMER & JOB LOGIC (FIXED) ---
         window.acceptJob = async (id) => {
             try {
                 await updateDoc(doc(db, "jobs", id), { 
@@ -208,6 +231,7 @@
             onSnapshot(q, async (snap) => {
                 const card = document.getElementById('active-job-card');
                 if(!card) return;
+                
                 if(!snap.empty) {
                     const docSnap = snap.docs[0];
                     const job = docSnap.data();
@@ -226,13 +250,16 @@
                         </div>`;
                     startTimer(job.startTime);
                 } else {
+                    // ජොබ් එකක් නැත්නම් කාඩ් එක හංගන්න සහ Timer නවත්වන්න
                     card.classList.add('hidden');
-                    if(timerInt) clearInterval(timerInt);
+                    if(timerInt) {
+                        clearInterval(timerInt);
+                        timerInt = null;
+                    }
                 }
             });
         }
 
-        let timerInt = null;
         function startTimer(startTime) {
             if(timerInt) clearInterval(timerInt);
             updateTimerUI(startTime);
@@ -250,7 +277,8 @@
             if(el) el.innerText = diff >= 3600 ? `${hrs}:${mins}:${secs}` : `${mins}:${secs}`;
         }
 
-        // --- RENDER VIEWS ---
+        // --- UI RENDERING ---
+        
         window.renderLogin = () => {
             document.getElementById('main-content').innerHTML = `
                 <div class="p-8 pt-20 fade-in flex flex-col h-screen justify-center">
@@ -262,7 +290,7 @@
                         <p class="text-gray-500 mt-2">Connecting Generations</p>
                     </div>
                     <div class="space-y-4">
-                        <input type="text" id="login-email" class="nice-input" placeholder="Email">
+                        <input type="text" id="login-email" class="nice-input" placeholder="Email or Username">
                         <input type="password" id="login-pass" class="nice-input" placeholder="Password">
                         <button onclick="handleLogin()" class="btn-primary mt-4">Log In</button>
                         <button onclick="handleGoogle()" class="w-full p-4 border-2 border-gray-200 rounded-2xl flex items-center justify-center gap-3 font-semibold hover:bg-gray-50 transition">
@@ -279,7 +307,7 @@
                     <button onclick="renderLogin()" class="mb-6 text-gray-400"><i class="fas fa-arrow-left"></i> Back</button>
                     <h2 class="text-3xl font-bold mb-6">Create Account</h2>
                     <div class="space-y-4">
-                        <input type="text" id="reg-email" class="nice-input" placeholder="Email">
+                        <input type="text" id="reg-email" class="nice-input" placeholder="Email or Username">
                         <input type="password" id="reg-pass" class="nice-input" placeholder="Create Password">
                         <button onclick="handleRegister()" class="btn-primary">Create Account</button>
                     </div>
@@ -393,13 +421,23 @@
             loadProviderJobs();
         }
 
+        // --- JOB POSTING WITH PHOTO ---
         window.renderPostJob = () => {
             document.getElementById('main-content').innerHTML = `
                 <div class="p-6 pt-10 h-screen bg-white fade-in overflow-y-auto">
                     <button onclick="renderProviderHome()" class="mb-6 text-gray-500"><i class="fas fa-arrow-left"></i> Cancel</button>
                     <h2 class="text-2xl font-bold mb-6 text-purple-800">Create New Job</h2>
                     <div class="space-y-4">
-                        <textarea id="job-desc" class="nice-input" rows="3" placeholder="Description"></textarea>
+                        <textarea id="job-desc" class="nice-input" rows="3" placeholder="Job Description (e.g. Clean Garden)"></textarea>
+                        
+                        <div class="file-upload-wrapper">
+                            <input type="file" id="job-image-file" onchange="previewImage(this,'job-preview-post')" accept="image/*">
+                            <img id="job-preview-post" class="preview-img">
+                            <div class="text-center text-gray-400">
+                                <i class="fas fa-camera text-3xl mb-2"></i><br>Add Photo (Optional)
+                            </div>
+                        </div>
+
                         <div class="grid grid-cols-2 gap-4">
                             <input type="number" id="job-time" class="nice-input" placeholder="Duration (Mins)">
                             <input type="number" id="job-price" class="nice-input" placeholder="Price">
@@ -442,14 +480,13 @@
             loadAdminRequests();
         }
 
-        // --- HANDLERS ---
+        // --- ACTION HANDLERS ---
         window.handleLogin = async () => {
             let email = document.getElementById('login-email').value;
             const pass = document.getElementById('login-pass').value;
-            if(!email.includes('@')) email += "@elderapp.local";
+            if(!email.includes('@')) email += "@elderapp.local"; // Username Support
             try { await signInWithEmailAndPassword(auth, email, pass); } catch (e) { showToast(e.message, 'error'); }
         }
-        window.handleGoogle = async () => { try { await signInWithPopup(auth, new GoogleAuthProvider()); } catch(e) {} }
         window.handleRegister = async () => {
             let email = document.getElementById('reg-email').value;
             const pass = document.getElementById('reg-pass').value;
@@ -501,6 +538,7 @@
             }
         }
 
+        // --- SHOW JOBS WITH PHOTOS ---
         window.loadSeekerJobs = () => {
             const q = query(collection(db, "jobs"), where("status", "==", "open"));
             onSnapshot(q, (snap) => {
@@ -509,8 +547,13 @@
                 feed.innerHTML = snap.empty ? "<p class='text-center text-gray-400'>No jobs.</p>" : "";
                 snap.forEach(d => {
                     const job = d.data();
+                    
+                    // Show Job Image if available
+                    let imgHTML = job.jobImage ? `<img src="${job.jobImage}" class="w-full h-40 object-cover rounded-xl mb-3 border border-gray-100">` : '';
+
                     feed.innerHTML += `
                         <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-4 transition hover:shadow-md">
+                            ${imgHTML}
                             <h4 class="font-bold text-lg text-gray-800">${job.description}</h4>
                             <div class="flex gap-4 mt-2 mb-4 text-sm text-gray-500"><span><i class="far fa-clock"></i> ${job.duration} mins</span><span class="font-bold text-green-600">${job.price} ${job.paymentMethod == 'coin'?'EC':'LKR'}</span></div>
                             <button onclick="acceptJob('${d.id}')" class="w-full py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-teal-100">Accept</button>
@@ -519,12 +562,33 @@
             });
         }
 
+        // --- POST JOB LOGIC (UPDATED WITH IMAGE) ---
         window.submitJob = async () => {
             const desc = document.getElementById('job-desc').value;
             const time = document.getElementById('job-time').value;
             const price = document.getElementById('job-price').value;
             const method = document.querySelector('input[name="pay-method"]:checked').value;
-            await addDoc(collection(db, "jobs"), { providerId: currentUser.uid, providerName: userDoc.name, description: desc, duration: time, price: parseFloat(price), paymentMethod: method, status: 'open', createdAt: new Date() });
+            
+            // Handle Job Image
+            const fileInput = document.getElementById('job-image-file');
+            let jobImageUrl = null;
+            if(fileInput.files.length > 0) {
+                try {
+                    jobImageUrl = await compressImage(fileInput.files[0]);
+                } catch(e) { console.error("Img Error", e); }
+            }
+
+            await addDoc(collection(db, "jobs"), { 
+                providerId: currentUser.uid, 
+                providerName: userDoc.name, 
+                description: desc, 
+                duration: time, 
+                price: parseFloat(price), 
+                paymentMethod: method, 
+                status: 'open', 
+                createdAt: new Date(),
+                jobImage: jobImageUrl // Save the image URL
+            });
             showToast("Job Posted!"); renderProviderHome();
         }
 
@@ -543,14 +607,10 @@
             });
         }
 
-        // --- UPDATED: Use CompressImage in upload functions ---
         window.confirmFinishJob = async (jid, price, method, wid) => {
             const fileInput = document.getElementById('job-receipt-file');
             let receiptUrl = null;
-            if(fileInput.files.length > 0) {
-                // CHANGE: Use compressImage instead of toBase64
-                receiptUrl = await compressImage(fileInput.files[0]);
-            }
+            if(fileInput.files.length > 0) receiptUrl = await compressImage(fileInput.files[0]);
             
             if(method === 'coin') {
                 if(userDoc.coins < price) { showToast("Not enough Coins!", "error"); return; }
@@ -564,25 +624,10 @@
         window.confirmTopUp = async () => {
             const amount = document.getElementById('topup-amount').value;
             const fileInput = document.getElementById('topup-file');
-            
-            if(!amount || fileInput.files.length === 0) return showToast("Upload Slip & Amount", "error");
-            
-            try {
-                // CHANGE: Use compressImage here too
-                const imgStr = await compressImage(fileInput.files[0]);
-                await addDoc(collection(db, "coin_requests"), { 
-                    userId: currentUser.uid, 
-                    userName: userDoc.name, 
-                    type: 'buy', 
-                    amount: parseInt(amount), 
-                    status: 'pending', 
-                    receiptImage: imgStr 
-                });
-                closeModal(); showToast("Request Sent!");
-            } catch (e) {
-                console.error(e); // Helps debug
-                showToast("Image Too Large / Error", "error");
-            }
+            if(!amount || fileInput.files.length === 0) return showToast("Upload Slip", "error");
+            const imgStr = await compressImage(fileInput.files[0]);
+            await addDoc(collection(db, "coin_requests"), { userId: currentUser.uid, userName: userDoc.name, type: 'buy', amount: parseInt(amount), status: 'pending', receiptImage: imgStr });
+            closeModal(); showToast("Request Sent!");
         }
 
         window.confirmWithdraw = async () => {
@@ -617,12 +662,10 @@
             }
         }
         
-        // Modal functions
         window.openMedicineModal = () => { document.getElementById('modal-content').innerHTML = `<h3 class="font-bold mb-2">Add Medicine</h3><input id="modal-med-name" class="nice-input" placeholder="Name"><input id="modal-med-time" type="time" class="nice-input"><div class="flex gap-2 mt-2"><button onclick="closeModal()" class="btn-secondary">Cancel</button><button onclick="confirmAddMed()" class="btn-primary">Add</button></div>`; document.getElementById('app-modal').classList.add('active'); }
         window.openWithdrawModal = () => { document.getElementById('modal-content').innerHTML = `<h3 class="font-bold mb-2">Withdraw</h3><input id="modal-with-amount" class="nice-input" placeholder="Amount"><textarea id="modal-with-bank" class="nice-input" placeholder="Bank Details"></textarea><div class="flex gap-2 mt-2"><button onclick="closeModal()" class="btn-secondary">Cancel</button><button onclick="confirmWithdraw()" class="btn-primary">Request</button></div>`; document.getElementById('app-modal').classList.add('active'); }
         window.openTopUpModal = () => { document.getElementById('modal-content').innerHTML = `<h3 class="font-bold mb-2">Top Up</h3><input id="topup-amount" class="nice-input" placeholder="Amount"><div class="file-upload-wrapper"><input type="file" id="topup-file" onchange="previewImage(this,'tp-prev')"><img id="tp-prev" class="preview-img"><div class="text-center">Upload Slip</div></div><div class="flex gap-2 mt-2"><button onclick="closeModal()" class="btn-secondary">Cancel</button><button onclick="confirmTopUp()" class="btn-primary">Send</button></div>`; document.getElementById('app-modal').classList.add('active'); }
         window.openJobFinishModal = (jid, p, m, wid) => { document.getElementById('modal-content').innerHTML = `<h3 class="font-bold mb-2">Complete Job</h3><p>Amount: ${p}</p><div class="file-upload-wrapper"><input type="file" id="job-receipt-file" onchange="previewImage(this,'job-prev')"><img id="job-prev" class="preview-img"><div class="text-center">Upload Proof</div></div><div class="flex gap-2 mt-2"><button onclick="closeModal()" class="btn-secondary">Cancel</button><button onclick="confirmFinishJob('${jid}',${p},'${m}','${wid}')" class="btn-primary">Pay & Finish</button></div>`; document.getElementById('app-modal').classList.add('active'); }
     </script>
 </body>
-
 </html>
