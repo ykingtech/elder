@@ -624,4 +624,5 @@
         window.openJobFinishModal = (jid, p, m, wid) => { document.getElementById('modal-content').innerHTML = `<h3 class="font-bold mb-2">Complete Job</h3><p>Amount: ${p}</p><div class="file-upload-wrapper"><input type="file" id="job-receipt-file" onchange="previewImage(this,'job-prev')"><img id="job-prev" class="preview-img"><div class="text-center">Upload Proof</div></div><div class="flex gap-2 mt-2"><button onclick="closeModal()" class="btn-secondary">Cancel</button><button onclick="confirmFinishJob('${jid}',${p},'${m}','${wid}')" class="btn-primary">Pay & Finish</button></div>`; document.getElementById('app-modal').classList.add('active'); }
     </script>
 </body>
+
 </html>
