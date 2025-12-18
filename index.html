@@ -209,23 +209,17 @@
             loading.style.display = 'none';
         });
 
-        // --- MEDICINE REMINDER SYSTEM (NEW) ---
-        // 1. Request Permission on load
+        // --- MEDICINE REMINDER SYSTEM ---
         if ("Notification" in window) {
             try { Notification.requestPermission(); } catch(e){}
         }
 
         let lastPlayedMinute = "";
-
-        // Check time every 5 seconds
         setInterval(() => {
-            if (!userDoc || !userDoc.medicines) return; // Not logged in or no meds
-
+            if (!userDoc || !userDoc.medicines) return;
             const now = new Date();
-            // Format time as HH:MM (e.g., 08:30 or 14:05)
             const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-            if (currentTime === lastPlayedMinute) return; // Prevent multiple alerts in same minute
+            if (currentTime === lastPlayedMinute) return;
 
             userDoc.medicines.forEach(med => {
                 if (med.time === currentTime) {
@@ -236,14 +230,9 @@
         }, 5000);
 
         function triggerReminder(medName) {
-            // 1. Play Sound
             const audio = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3'); 
             audio.play().catch(e => console.log("Audio error:", e));
-
-            // 2. Show In-App Message
             showToast(`💊 Time to take: ${medName}`);
-
-            // 3. System Notification (if supported)
             if ("Notification" in window && Notification.permission === "granted") {
                 try {
                     new Notification("Medicine Reminder", { 
@@ -464,7 +453,95 @@
             loadProviderJobs();
         }
 
-        // --- NEW: POST JOB + VALIDATION & FIELDS ---
+        // --- UPDATED: SHOW JOB DETAILS WITH PAYMENT BADGE & RIDE APPS ---
+        window.loadSeekerJobs = () => {
+            const q = query(collection(db, "jobs"), where("status", "==", "open"));
+            onSnapshot(q, (snap) => {
+                const feed = document.getElementById('seeker-feed');
+                if(!feed) return;
+                feed.innerHTML = snap.empty ? "<p class='text-center text-gray-400'>No jobs.</p>" : "";
+                snap.forEach(d => {
+                    const job = d.data();
+                    
+                    let imgHTML = job.jobImage ? `<img src="${job.jobImage}" class="w-full h-40 object-cover rounded-xl mb-3 border border-gray-100">` : '';
+
+                    // Payment Method Badge
+                    let payBadge = job.paymentMethod === 'coin' 
+                        ? `<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold"><i class="fas fa-coins"></i> Elder Coin</span>`
+                        : `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold"><i class="fas fa-money-bill-wave"></i> Cash</span>`;
+
+                    // Ride App Buttons (Opens Uber or Maps for PickMe)
+                    let locEnc = encodeURIComponent(job.location || '');
+                    let rideBtns = job.location ? `
+                        <div class="flex gap-2 mt-3 mb-2">
+                            <a href="https://m.uber.com/ul/?action=setPickup&dropoff[formatted_address]=${locEnc}" target="_blank" class="flex-1 bg-black text-white py-2 rounded-lg text-center text-sm font-bold shadow-md"><i class="fab fa-uber"></i> Uber</a>
+                            <a href="https://www.google.com/maps/search/?api=1&query=${locEnc}" target="_blank" class="flex-1 bg-red-600 text-white py-2 rounded-lg text-center text-sm font-bold shadow-md"><i class="fas fa-map-marker-alt"></i> Map / PickMe</a>
+                        </div>
+                    ` : '';
+
+                    feed.innerHTML += `
+                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-4 transition hover:shadow-md">
+                            ${imgHTML}
+                            <div class="flex justify-between items-start">
+                                <h4 class="font-bold text-lg text-gray-800 mb-1">${job.description}</h4>
+                                ${payBadge}
+                            </div>
+                            
+                            <div class="text-sm text-gray-500 mb-2">
+                                <i class="fas fa-map-marker-alt mr-1"></i> ${job.location || 'No address'}<br>
+                                <i class="fas fa-phone mr-1"></i> ${job.contactPhone || 'No phone'}
+                            </div>
+                            
+                            ${rideBtns}
+
+                            <div class="flex gap-4 mt-2 mb-4 text-sm text-gray-500">
+                                <span><i class="far fa-clock"></i> ${job.duration} mins</span>
+                                <span class="font-bold text-green-600">${job.price} ${job.paymentMethod == 'coin'?'EC':'LKR'}</span>
+                            </div>
+                            <button onclick="acceptJob('${d.id}')" class="w-full py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-teal-100">Accept</button>
+                        </div>`;
+                });
+            });
+        }
+
+        window.submitJob = async () => {
+            const desc = document.getElementById('job-desc').value;
+            const time = document.getElementById('job-time').value;
+            const price = parseFloat(document.getElementById('job-price').value);
+            const method = document.querySelector('input[name="pay-method"]:checked').value;
+            
+            const address = document.getElementById('job-address').value;
+            const phone = document.getElementById('job-phone').value;
+
+            if(method === 'coin' && (userDoc.coins || 0) < price) {
+                showToast("Insufficient Coins!", "error");
+                return;
+            }
+
+            const fileInput = document.getElementById('job-image-file');
+            let jobImageUrl = null;
+            if(fileInput.files.length > 0) {
+                try {
+                    jobImageUrl = await compressImage(fileInput.files[0]);
+                } catch(e) { console.error("Img Error", e); }
+            }
+
+            await addDoc(collection(db, "jobs"), { 
+                providerId: currentUser.uid, 
+                providerName: userDoc.name, 
+                description: desc, 
+                duration: time, 
+                price: price, 
+                paymentMethod: method, 
+                status: 'open', 
+                createdAt: new Date(),
+                jobImage: jobImageUrl,
+                location: address,
+                contactPhone: phone
+            });
+            showToast("Job Posted!"); renderProviderHome();
+        }
+
         window.renderPostJob = () => {
             document.getElementById('main-content').innerHTML = `
                 <div class="p-6 pt-10 h-screen bg-white fade-in overflow-y-auto">
@@ -526,7 +603,6 @@
             loadAdminRequests();
         }
 
-        // --- HANDLERS ---
         window.handleLogin = async () => {
             let email = document.getElementById('login-email').value;
             const pass = document.getElementById('login-pass').value;
@@ -582,77 +658,6 @@
                 await updateDoc(doc(db, "users", currentUser.uid), { medicines: newMeds });
                 userDoc.medicines = newMeds; loadMeds();
             }
-        }
-
-        // --- UPDATED: SHOW JOB DETAILS (LOC, PHONE, IMG) ---
-        window.loadSeekerJobs = () => {
-            const q = query(collection(db, "jobs"), where("status", "==", "open"));
-            onSnapshot(q, (snap) => {
-                const feed = document.getElementById('seeker-feed');
-                if(!feed) return;
-                feed.innerHTML = snap.empty ? "<p class='text-center text-gray-400'>No jobs.</p>" : "";
-                snap.forEach(d => {
-                    const job = d.data();
-                    
-                    let imgHTML = job.jobImage ? `<img src="${job.jobImage}" class="w-full h-40 object-cover rounded-xl mb-3 border border-gray-100">` : '';
-
-                    feed.innerHTML += `
-                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-4 transition hover:shadow-md">
-                            ${imgHTML}
-                            <h4 class="font-bold text-lg text-gray-800">${job.description}</h4>
-                            
-                            <div class="text-sm text-gray-500 mb-2">
-                                <i class="fas fa-map-marker-alt mr-1"></i> ${job.location || 'No address'}<br>
-                                <i class="fas fa-phone mr-1"></i> ${job.contactPhone || 'No phone'}
-                            </div>
-
-                            <div class="flex gap-4 mt-2 mb-4 text-sm text-gray-500"><span><i class="far fa-clock"></i> ${job.duration} mins</span><span class="font-bold text-green-600">${job.price} ${job.paymentMethod == 'coin'?'EC':'LKR'}</span></div>
-                            <button onclick="acceptJob('${d.id}')" class="w-full py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-teal-100">Accept</button>
-                        </div>`;
-                });
-            });
-        }
-
-        // --- UPDATED: SUBMIT JOB WITH VALIDATION ---
-        window.submitJob = async () => {
-            const desc = document.getElementById('job-desc').value;
-            const time = document.getElementById('job-time').value;
-            const price = parseFloat(document.getElementById('job-price').value);
-            const method = document.querySelector('input[name="pay-method"]:checked').value;
-            
-            // New Fields
-            const address = document.getElementById('job-address').value;
-            const phone = document.getElementById('job-phone').value;
-
-            // VALIDATION: Check Coin Balance
-            if(method === 'coin' && (userDoc.coins || 0) < price) {
-                showToast("Insufficient Coins to post this job!", "error");
-                return;
-            }
-
-            // Image Upload
-            const fileInput = document.getElementById('job-image-file');
-            let jobImageUrl = null;
-            if(fileInput.files.length > 0) {
-                try {
-                    jobImageUrl = await compressImage(fileInput.files[0]);
-                } catch(e) { console.error("Img Error", e); }
-            }
-
-            await addDoc(collection(db, "jobs"), { 
-                providerId: currentUser.uid, 
-                providerName: userDoc.name, 
-                description: desc, 
-                duration: time, 
-                price: price, 
-                paymentMethod: method, 
-                status: 'open', 
-                createdAt: new Date(),
-                jobImage: jobImageUrl,
-                location: address,
-                contactPhone: phone
-            });
-            showToast("Job Posted!"); renderProviderHome();
         }
 
         window.loadProviderJobs = () => {
