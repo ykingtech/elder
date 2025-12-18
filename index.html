@@ -128,7 +128,7 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
-        // --- IMAGE COMPRESSION UTILS ---
+        // --- IMAGE COMPRESSION ---
         const compressImage = (file) => {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -158,7 +158,6 @@
                     const img = document.getElementById(imgId);
                     img.src = e.target.result;
                     img.style.display = 'block';
-                    // Hide the text/icon behind the image
                     const textDiv = input.parentElement.querySelector('div');
                     if(textDiv) textDiv.style.display = 'none';
                 }
@@ -168,18 +167,15 @@
 
         window.closeModal = () => document.getElementById('app-modal').classList.remove('active');
 
-        // --- AUTH & NATIVE GOOGLE LOGIN ---
+        // --- AUTH & GOOGLE ---
         window.handleGoogle = () => {
-            // ඇප් එක හරහා ලොග් වෙන්න (Native Login)
             if (window.Android && window.Android.triggerGoogleLogin) {
                 window.Android.triggerGoogleLogin();
             } else {
-                // වෙබ් එකෙන් නම් (Testing Only)
                 signInWithPopup(auth, new GoogleAuthProvider()).catch(e => showToast(e.message, 'error'));
             }
         }
 
-        // ඇප් එකෙන් Token එක ලැබුණු පසු
         window.onNativeGoogleLogin = async (idToken) => {
             try {
                 const credential = GoogleAuthProvider.credential(idToken);
@@ -208,12 +204,57 @@
                 }
             } else {
                 renderLogin();
-                if(timerInt) clearInterval(timerInt); // Logout එකේදී Timer නවත්වන්න
+                if(timerInt) clearInterval(timerInt);
             }
             loading.style.display = 'none';
         });
 
-        // --- TIMER & JOB LOGIC (FIXED) ---
+        // --- MEDICINE REMINDER SYSTEM (NEW) ---
+        // 1. Request Permission on load
+        if ("Notification" in window) {
+            try { Notification.requestPermission(); } catch(e){}
+        }
+
+        let lastPlayedMinute = "";
+
+        // Check time every 5 seconds
+        setInterval(() => {
+            if (!userDoc || !userDoc.medicines) return; // Not logged in or no meds
+
+            const now = new Date();
+            // Format time as HH:MM (e.g., 08:30 or 14:05)
+            const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+            if (currentTime === lastPlayedMinute) return; // Prevent multiple alerts in same minute
+
+            userDoc.medicines.forEach(med => {
+                if (med.time === currentTime) {
+                    triggerReminder(med.name);
+                    lastPlayedMinute = currentTime;
+                }
+            });
+        }, 5000);
+
+        function triggerReminder(medName) {
+            // 1. Play Sound
+            const audio = new Audio('https://www.soundjay.com/buttons/beep-01a.mp3'); 
+            audio.play().catch(e => console.log("Audio error:", e));
+
+            // 2. Show In-App Message
+            showToast(`💊 Time to take: ${medName}`);
+
+            // 3. System Notification (if supported)
+            if ("Notification" in window && Notification.permission === "granted") {
+                try {
+                    new Notification("Medicine Reminder", { 
+                        body: `It's time to take ${medName}`,
+                        icon: "https://cdn-icons-png.flaticon.com/512/883/883407.png"
+                    });
+                } catch(e) {}
+            }
+        }
+
+        // --- TIMER & JOB LOGIC ---
         window.acceptJob = async (id) => {
             try {
                 await updateDoc(doc(db, "jobs", id), { 
@@ -246,11 +287,13 @@
                             <h3 class="text-blue-200 text-sm font-bold uppercase tracking-wider mb-1">Ongoing Job</h3>
                             <div class="text-4xl font-mono font-bold mb-2" id="timer">Loading...</div>
                             <p class="text-sm opacity-90">${job.description}</p>
-                            <div class="mt-4 text-xs bg-white/20 inline-block px-3 py-1 rounded-full">In Progress</div>
+                            <div class="text-xs bg-white/20 p-2 rounded-lg mt-2">
+                                <p><i class="fas fa-map-marker-alt"></i> ${job.location || 'Location N/A'}</p>
+                                <p><i class="fas fa-phone"></i> ${job.contactPhone || 'Phone N/A'}</p>
+                            </div>
                         </div>`;
                     startTimer(job.startTime);
                 } else {
-                    // ජොබ් එකක් නැත්නම් කාඩ් එක හංගන්න සහ Timer නවත්වන්න
                     card.classList.add('hidden');
                     if(timerInt) {
                         clearInterval(timerInt);
@@ -421,15 +464,18 @@
             loadProviderJobs();
         }
 
-        // --- JOB POSTING WITH PHOTO ---
+        // --- NEW: POST JOB + VALIDATION & FIELDS ---
         window.renderPostJob = () => {
             document.getElementById('main-content').innerHTML = `
                 <div class="p-6 pt-10 h-screen bg-white fade-in overflow-y-auto">
                     <button onclick="renderProviderHome()" class="mb-6 text-gray-500"><i class="fas fa-arrow-left"></i> Cancel</button>
                     <h2 class="text-2xl font-bold mb-6 text-purple-800">Create New Job</h2>
                     <div class="space-y-4">
-                        <textarea id="job-desc" class="nice-input" rows="3" placeholder="Job Description (e.g. Clean Garden)"></textarea>
+                        <textarea id="job-desc" class="nice-input" rows="3" placeholder="Description"></textarea>
                         
+                        <input id="job-address" class="nice-input" placeholder="Job Location/Address">
+                        <input id="job-phone" class="nice-input" placeholder="Contact Number" type="tel">
+
                         <div class="file-upload-wrapper">
                             <input type="file" id="job-image-file" onchange="previewImage(this,'job-preview-post')" accept="image/*">
                             <img id="job-preview-post" class="preview-img">
@@ -480,11 +526,11 @@
             loadAdminRequests();
         }
 
-        // --- ACTION HANDLERS ---
+        // --- HANDLERS ---
         window.handleLogin = async () => {
             let email = document.getElementById('login-email').value;
             const pass = document.getElementById('login-pass').value;
-            if(!email.includes('@')) email += "@elderapp.local"; // Username Support
+            if(!email.includes('@')) email += "@elderapp.local"; 
             try { await signInWithEmailAndPassword(auth, email, pass); } catch (e) { showToast(e.message, 'error'); }
         }
         window.handleRegister = async () => {
@@ -538,7 +584,7 @@
             }
         }
 
-        // --- SHOW JOBS WITH PHOTOS ---
+        // --- UPDATED: SHOW JOB DETAILS (LOC, PHONE, IMG) ---
         window.loadSeekerJobs = () => {
             const q = query(collection(db, "jobs"), where("status", "==", "open"));
             onSnapshot(q, (snap) => {
@@ -548,13 +594,18 @@
                 snap.forEach(d => {
                     const job = d.data();
                     
-                    // Show Job Image if available
                     let imgHTML = job.jobImage ? `<img src="${job.jobImage}" class="w-full h-40 object-cover rounded-xl mb-3 border border-gray-100">` : '';
 
                     feed.innerHTML += `
                         <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-4 transition hover:shadow-md">
                             ${imgHTML}
                             <h4 class="font-bold text-lg text-gray-800">${job.description}</h4>
+                            
+                            <div class="text-sm text-gray-500 mb-2">
+                                <i class="fas fa-map-marker-alt mr-1"></i> ${job.location || 'No address'}<br>
+                                <i class="fas fa-phone mr-1"></i> ${job.contactPhone || 'No phone'}
+                            </div>
+
                             <div class="flex gap-4 mt-2 mb-4 text-sm text-gray-500"><span><i class="far fa-clock"></i> ${job.duration} mins</span><span class="font-bold text-green-600">${job.price} ${job.paymentMethod == 'coin'?'EC':'LKR'}</span></div>
                             <button onclick="acceptJob('${d.id}')" class="w-full py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-teal-100">Accept</button>
                         </div>`;
@@ -562,14 +613,24 @@
             });
         }
 
-        // --- POST JOB LOGIC (UPDATED WITH IMAGE) ---
+        // --- UPDATED: SUBMIT JOB WITH VALIDATION ---
         window.submitJob = async () => {
             const desc = document.getElementById('job-desc').value;
             const time = document.getElementById('job-time').value;
-            const price = document.getElementById('job-price').value;
+            const price = parseFloat(document.getElementById('job-price').value);
             const method = document.querySelector('input[name="pay-method"]:checked').value;
             
-            // Handle Job Image
+            // New Fields
+            const address = document.getElementById('job-address').value;
+            const phone = document.getElementById('job-phone').value;
+
+            // VALIDATION: Check Coin Balance
+            if(method === 'coin' && (userDoc.coins || 0) < price) {
+                showToast("Insufficient Coins to post this job!", "error");
+                return;
+            }
+
+            // Image Upload
             const fileInput = document.getElementById('job-image-file');
             let jobImageUrl = null;
             if(fileInput.files.length > 0) {
@@ -583,11 +644,13 @@
                 providerName: userDoc.name, 
                 description: desc, 
                 duration: time, 
-                price: parseFloat(price), 
+                price: price, 
                 paymentMethod: method, 
                 status: 'open', 
                 createdAt: new Date(),
-                jobImage: jobImageUrl // Save the image URL
+                jobImage: jobImageUrl,
+                location: address,
+                contactPhone: phone
             });
             showToast("Job Posted!"); renderProviderHome();
         }
@@ -665,7 +728,7 @@
         window.openMedicineModal = () => { document.getElementById('modal-content').innerHTML = `<h3 class="font-bold mb-2">Add Medicine</h3><input id="modal-med-name" class="nice-input" placeholder="Name"><input id="modal-med-time" type="time" class="nice-input"><div class="flex gap-2 mt-2"><button onclick="closeModal()" class="btn-secondary">Cancel</button><button onclick="confirmAddMed()" class="btn-primary">Add</button></div>`; document.getElementById('app-modal').classList.add('active'); }
         window.openWithdrawModal = () => { document.getElementById('modal-content').innerHTML = `<h3 class="font-bold mb-2">Withdraw</h3><input id="modal-with-amount" class="nice-input" placeholder="Amount"><textarea id="modal-with-bank" class="nice-input" placeholder="Bank Details"></textarea><div class="flex gap-2 mt-2"><button onclick="closeModal()" class="btn-secondary">Cancel</button><button onclick="confirmWithdraw()" class="btn-primary">Request</button></div>`; document.getElementById('app-modal').classList.add('active'); }
         window.openTopUpModal = () => { document.getElementById('modal-content').innerHTML = `<h3 class="font-bold mb-2">Top Up</h3><input id="topup-amount" class="nice-input" placeholder="Amount"><div class="file-upload-wrapper"><input type="file" id="topup-file" onchange="previewImage(this,'tp-prev')"><img id="tp-prev" class="preview-img"><div class="text-center">Upload Slip</div></div><div class="flex gap-2 mt-2"><button onclick="closeModal()" class="btn-secondary">Cancel</button><button onclick="confirmTopUp()" class="btn-primary">Send</button></div>`; document.getElementById('app-modal').classList.add('active'); }
-        window.openJobFinishModal = (jid, p, m, wid) => { document.getElementById('modal-content').innerHTML = `<h3 class="font-bold mb-2">Complete Job</h3><p>Amount: ${p}</p><div class="file-upload-wrapper"><input type="file" id="job-receipt-file" onchange="previewImage(this,'job-prev')"><img id="job-prev" class="preview-img"><div class="text-center">Upload Proof</div></div><div class="flex gap-2 mt-2"><button onclick="closeModal()" class="btn-secondary">Cancel</button><button onclick="confirmFinishJob('${jid}',${p},'${m}','${wid}')" class="btn-primary">Pay & Finish</button></div>`; document.getElementById('app-modal').classList.add('active'); }
+        window.openJobFinishModal = (jid, p, m, wid) => { document.getElementById('modal-content').innerHTML = `<h3 class="font-bold mb-2">Complete Job</h3><p>Amount: ${p}</p><div class="file-upload-wrapper"><input type="file" id="job-receipt-file" onchange="previewImage(this,'job-prev')"><img id="job-prev" class="preview-img"><div class="text-center">Upload Proof</div></div><div class=\"flex gap-2 mt-2\"><button onclick=\"closeModal()\" class=\"btn-secondary\">Cancel</button><button onclick=\"confirmFinishJob('${jid}',${p},'${m}','${wid}')\" class=\"btn-primary\">Pay & Finish</button></div>`; document.getElementById('app-modal').classList.add('active'); }
     </script>
 </body>
 </html>
