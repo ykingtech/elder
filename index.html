@@ -120,7 +120,6 @@
         let currentUser = null;
         let userDoc = null;
         let timerInt = null;
-        // Listeners
         let jobListener = null;
         let activeJobListener = null;
 
@@ -136,14 +135,22 @@
 
         window.toggleReader = () => {
             if (isReading) {
-                window.speechSynthesis.cancel();
+                if(window.Android && window.Android.stopSpeak) {
+                    window.Android.stopSpeak(); 
+                } else {
+                    window.speechSynthesis.cancel();
+                }
                 isReading = false;
                 document.getElementById('btn-reader').classList.remove('active');
             } else {
                 const text = document.getElementById('main-content').innerText;
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.onend = () => { isReading = false; document.getElementById('btn-reader').classList.remove('active'); };
-                window.speechSynthesis.speak(utterance);
+                if(window.Android && window.Android.speak) {
+                    window.Android.speak(text);
+                } else {
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.onend = () => { isReading = false; document.getElementById('btn-reader').classList.remove('active'); };
+                    window.speechSynthesis.speak(utterance);
+                }
                 isReading = true;
                 document.getElementById('btn-reader').classList.add('active');
             }
@@ -240,7 +247,6 @@
             } else {
                 renderLogin();
                 if(timerInt) clearInterval(timerInt);
-                // Clear listeners on logout
                 if(jobListener) jobListener();
                 if(activeJobListener) activeJobListener();
             }
@@ -280,7 +286,7 @@
 
         // --- TIMER & ACTIVE JOB LOGIC ---
         window.checkActiveJob = () => {
-            if(activeJobListener) activeJobListener(); // Remove old listener
+            if(activeJobListener) activeJobListener();
             const q = query(collection(db, "jobs"), where("workerId", "==", currentUser.uid), where("status", "==", "active"));
             activeJobListener = onSnapshot(q, async (snap) => {
                 const card = document.getElementById('active-job-card');
@@ -370,12 +376,11 @@
                     startTime: Date.now() 
                 });
                 showToast("Job Accepted!");
-                // ★★★ KEY FIX: Navigate back to Home to see the Active Job ★★★
                 renderSeekerHome();
             } catch (e) { showToast("Error accepting", "error"); }
         }
 
-        // --- INSURANCE PAGE ---
+        // --- INSURANCE LOGIC ---
         window.renderInsurancePage = () => {
              document.getElementById('main-content').innerHTML = `
                 <div class="p-6 h-screen bg-white fade-in overflow-y-auto">
@@ -473,9 +478,32 @@
         window.renderSeekerHome = () => {
             document.getElementById('main-content').innerHTML = `
                 <div class="flex flex-col h-screen bg-gray-50">
-                    <div class="p-6 bg-white shadow-sm flex justify-between items-center sticky top-0 z-10"><div><p class="text-gray-500 text-sm">Hello,</p><h2 class="text-xl font-bold text-gray-800">${userDoc.name}</h2></div><div class="bg-yellow-100 px-4 py-2 rounded-full flex items-center gap-2"><i class="fas fa-coins text-yellow-600"></i><span class="font-bold text-yellow-700">${userDoc.coins || 0}</span></div></div>
-                    <div class="flex-1 overflow-y-auto p-6 pb-24"><div class="bg-red-50 border border-red-100 p-6 rounded-3xl mb-8 text-center relative overflow-hidden"><h3 class="text-red-600 font-bold text-lg mb-2">Emergency?</h3><button onclick="renderEmergency()" class="btn-danger w-full py-4 text-xl shadow-red-300 animate-pulse"><i class="fas fa-phone-alt mr-2"></i> GET HELP</button></div><div onclick="renderInsurancePage()" class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl mb-6 flex justify-between items-center cursor-pointer"><div><h3 class="font-bold text-indigo-800">Worker Insurance</h3><p class="text-xs text-indigo-600">${userDoc.insuranceProvider ? 'Covered by ' + userDoc.insuranceProvider : 'Get covered today'}</p></div><div class="w-10 h-10 bg-indigo-200 rounded-full flex items-center justify-center text-indigo-700"><i class="fas fa-shield-alt"></i></div></div><div id="active-job-card" class="hidden mb-6"></div><div class="bg-white p-6 rounded-3xl shadow-sm mb-6"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-700">Medicines</h3><button onclick="openMedicineModal()" class="text-sm bg-primary/10 text-primary px-3 py-1 rounded-full">+ Add</button></div><div id="med-list" class="space-y-3"></div></div><h3 class="font-bold text-gray-700 mb-4 text-lg">Available Jobs</h3><div id="seeker-feed" class="space-y-4"><div class="text-center py-10"><i class="fas fa-spinner fa-spin text-primary"></i></div></div></div>
-                    <div class="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-100 flex justify-around p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]"><button class="text-primary flex flex-col items-center"><i class="fas fa-home text-xl mb-1"></i><span class="text-xs">Home</span></button><button onclick="renderSeekerWallet()" class="text-gray-400 flex flex-col items-center"><i class="fas fa-wallet text-xl mb-1"></i><span class="text-xs">Wallet</span></button><button onclick="handleLogout()" class="text-gray-400 flex flex-col items-center"><i class="fas fa-sign-out-alt text-xl mb-1"></i><span class="text-xs">Logout</span></button></div></div>`;
+                    <div class="p-6 bg-white shadow-sm flex justify-between items-center sticky top-0 z-10">
+                        <div><p class="text-gray-500 text-sm">Hello,</p><h2 class="text-xl font-bold text-gray-800">${userDoc.name}</h2></div>
+                        <div class="bg-yellow-100 px-4 py-2 rounded-full flex items-center gap-2"><i class="fas fa-coins text-yellow-600"></i><span class="font-bold text-yellow-700">${userDoc.coins || 0}</span></div>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-6 pb-24">
+                        <div class="bg-red-50 border border-red-100 p-6 rounded-3xl mb-4 text-center relative overflow-hidden">
+                            <h3 class="text-red-600 font-bold text-lg mb-2">Emergency?</h3>
+                            <button onclick="renderEmergency()" class="btn-danger w-full py-4 text-xl shadow-red-300 animate-pulse"><i class="fas fa-phone-alt mr-2"></i> GET HELP</button>
+                        </div>
+
+                        <div onclick="openBandRequestModal()" class="bg-teal-50 border border-teal-100 p-4 rounded-2xl mb-6 flex justify-between items-center cursor-pointer shadow-sm">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center text-teal-600 font-bold"><i class="fas fa-heartbeat"></i></div>
+                                <div><h3 class="font-bold text-teal-800">Get Smart Band</h3><p class="text-xs text-teal-600">Request your safety band</p></div>
+                            </div>
+                            <i class="fas fa-chevron-right text-teal-400"></i>
+                        </div>
+
+                        <div onclick="renderInsurancePage()" class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl mb-6 flex justify-between items-center cursor-pointer"><div><h3 class="font-bold text-indigo-800">Worker Insurance</h3><p class="text-xs text-indigo-600">${userDoc.insuranceProvider ? 'Covered by ' + userDoc.insuranceProvider : 'Get covered today'}</p></div><div class="w-10 h-10 bg-indigo-200 rounded-full flex items-center justify-center text-indigo-700"><i class="fas fa-shield-alt"></i></div></div>
+                        <div id="active-job-card" class="hidden mb-6"></div>
+                        <div class="bg-white p-6 rounded-3xl shadow-sm mb-6"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-700">Medicines</h3><button onclick="openMedicineModal()" class="text-sm bg-primary/10 text-primary px-3 py-1 rounded-full">+ Add</button></div><div id="med-list" class="space-y-3"></div></div>
+                        <h3 class="font-bold text-gray-700 mb-4 text-lg">Available Jobs</h3>
+                        <div id="seeker-feed" class="space-y-4"><div class="text-center py-10"><i class="fas fa-spinner fa-spin text-primary"></i></div></div>
+                    </div>
+                    <div class="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-100 flex justify-around p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]"><button class="text-primary flex flex-col items-center"><i class="fas fa-home text-xl mb-1"></i><span class="text-xs">Home</span></button><button onclick="renderSeekerWallet()" class="text-gray-400 flex flex-col items-center"><i class="fas fa-wallet text-xl mb-1"></i><span class="text-xs">Wallet</span></button><button onclick="handleLogout()" class="text-gray-400 flex flex-col items-center"><i class="fas fa-sign-out-alt text-xl mb-1"></i><span class="text-xs">Logout</span></button></div>
+                </div>`;
             loadMeds(); loadSeekerJobs(); checkActiveJob();
         }
 
@@ -534,9 +562,25 @@
                 <div class="p-6 h-screen bg-white fade-in"><button onclick="renderSeekerHome()" class="mb-4 text-gray-500">Back</button><h2 class="text-2xl font-bold mb-6">My Earnings</h2><div class="bg-gradient-to-r from-teal-500 to-green-500 p-8 rounded-3xl text-white shadow-lg mb-8"><h1 class="text-5xl font-bold mt-2">${userDoc.coins || 0} <span class="text-xl">EC</span></h1></div><button onclick="openWithdrawModal()" class="btn-primary">Withdraw to Bank</button></div>`;
         }
 
+        // --- UPDATED ADMIN VIEW ---
         window.renderAdmin = () => {
             document.getElementById('main-content').innerHTML = `
-                <div class="p-6 h-screen bg-gray-100 overflow-y-auto"><div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-red-600">Admin</h2><button onclick="handleLogout()" class="text-sm bg-gray-300 px-3 py-1 rounded">Logout</button></div><div id="admin-list" class="space-y-4"><p class="text-center text-gray-500">Loading...</p></div></div>`;
+                <div class="p-6 h-screen bg-gray-100 overflow-y-auto">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-red-600">Admin Panel</h2>
+                        <button onclick="handleLogout()" class="text-sm bg-gray-300 px-3 py-1 rounded">Logout</button>
+                    </div>
+                    
+                    <h3 class="font-bold text-gray-700 mb-2 border-b pb-2">Band Requests</h3>
+                    <div id="admin-band-list" class="space-y-4 mb-8">
+                        <p class="text-center text-gray-400 text-sm">Loading bands...</p>
+                    </div>
+
+                    <h3 class="font-bold text-gray-700 mb-2 border-b pb-2">Coin Requests</h3>
+                    <div id="admin-coin-list" class="space-y-4">
+                        <p class="text-center text-gray-400 text-sm">Loading coins...</p>
+                    </div>
+                </div>`;
             loadAdminRequests();
         }
 
@@ -598,7 +642,7 @@
         }
 
         window.loadSeekerJobs = () => {
-            if(jobListener) jobListener();
+            if(jobListener) jobListener(); // Clean up old listener
             const q = query(collection(db, "jobs"), where("status", "==", "open"));
             jobListener = onSnapshot(q, (snap) => {
                 const feed = document.getElementById('seeker-feed');
@@ -732,12 +776,14 @@
             }
         }
 
+        // --- UPDATED ADMIN LOGIC (Band + Coins) ---
         window.loadAdminRequests = () => {
+             // 1. Coins
              const q = query(collection(db, "coin_requests"), where("status", "==", "pending"));
              onSnapshot(q, (snap) => {
-                const list = document.getElementById('admin-list');
+                const list = document.getElementById('admin-coin-list');
                 if(!list) return;
-                list.innerHTML = snap.empty ? "<p class='text-center'>No requests.</p>" : "";
+                list.innerHTML = snap.empty ? "<p class='text-center text-sm text-gray-400'>No coin requests.</p>" : "";
                 snap.forEach(d => {
                     const r = d.data();
                     let img = r.receiptImage ? `<img src="${r.receiptImage}" class="w-full h-32 object-contain bg-gray-50 mt-2">` : '';
@@ -745,7 +791,31 @@
                     list.innerHTML += `<div class="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-400"><div class="flex justify-between font-bold"><span>${r.type}</span><span>${r.amount} EC</span></div><p class="text-sm">${r.userName}</p>${bankDetails}${img}<div class="flex gap-2 mt-2"><button onclick="adminDecide('${d.id}', '${r.userId}', ${r.amount}, '${r.type}', true)" class="flex-1 bg-green-500 text-white py-1 rounded">Approve</button><button onclick="adminDecide('${d.id}', null, 0, null, false)" class="flex-1 bg-red-500 text-white py-1 rounded">Reject</button></div></div>`;
                 });
              });
+
+             // 2. Bands (Includes Address)
+             const qBand = query(collection(db, "band_requests"), where("status", "==", "pending"));
+             onSnapshot(qBand, (snap) => {
+                const list = document.getElementById('admin-band-list');
+                if(!list) return;
+                list.innerHTML = snap.empty ? "<p class='text-center text-sm text-gray-400'>No band requests.</p>" : "";
+                snap.forEach(d => {
+                    const r = d.data();
+                    list.innerHTML += `
+                        <div class="bg-white p-4 rounded-lg shadow border-l-4 border-teal-500">
+                            <div class="flex justify-between items-start">
+                                <h4 class="font-bold text-lg">${r.userName}</h4>
+                                <span class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs font-bold">${r.bloodGroup}</span>
+                            </div>
+                            <p class="text-sm text-gray-600 mt-1"><i class="fas fa-phone-alt text-xs"></i> Emergency: ${r.emergencyPhone}</p>
+                            <p class="text-xs text-gray-500 mt-1 bg-gray-50 p-2 rounded"><i class="fas fa-map-marker-alt text-teal-500"></i> ${r.address || 'No Address'}</p>
+                            <div class="flex gap-2 mt-3">
+                                <button onclick="completeBandRequest('${d.id}')" class="w-full bg-teal-600 text-white py-1 rounded text-sm font-bold">Mark as Printed/Sent</button>
+                            </div>
+                        </div>`;
+                });
+             });
         }
+
         window.adminDecide = async (rid, uid, amt, type, isApprove) => {
             if(isApprove) {
                 const val = type === 'buy' ? amt : -amt;
@@ -753,6 +823,78 @@
                 await updateDoc(doc(db, "coin_requests", rid), { status: 'approved' });
             } else {
                 await updateDoc(doc(db, "coin_requests", rid), { status: 'rejected' });
+            }
+        }
+
+        window.completeBandRequest = async (docId) => {
+            if(confirm("Mark this band as sent?")) {
+                await updateDoc(doc(db, "band_requests", docId), { status: 'completed' });
+                showToast("Band request completed!");
+            }
+        }
+        
+        // --- NEW BAND REQUEST MODAL (With Address) ---
+        window.openBandRequestModal = () => {
+            document.getElementById('modal-content').innerHTML = `
+                <h3 class="font-bold mb-4 text-xl text-teal-700">Request Smart Band</h3>
+                <p class="text-sm text-gray-500 mb-4">Please provide details to print on your QR Smart Band.</p>
+                
+                <label class="text-xs font-bold text-gray-500 ml-1">Full Name</label>
+                <input id="band-req-name" class="nice-input" placeholder="Name to print" value="${userDoc.name || ''}">
+                
+                <label class="text-xs font-bold text-gray-500 ml-1">Blood Group</label>
+                <select id="band-req-blood" class="nice-input bg-white">
+                    <option value="">Select Blood Group</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                </select>
+                
+                <label class="text-xs font-bold text-gray-500 ml-1">Emergency Contact Number</label>
+                <input id="band-req-phone" type="tel" class="nice-input" placeholder="e.g. 0771234567">
+                
+                <label class="text-xs font-bold text-gray-500 ml-1">Delivery Address</label>
+                <textarea id="band-req-address" class="nice-input" rows="3" placeholder="Address to send the band">${userDoc.address || ''}</textarea>
+
+                <div class="flex gap-2 mt-4">
+                    <button onclick="closeModal()" class="btn-secondary">Cancel</button>
+                    <button onclick="submitBandRequest()" class="btn-primary">Request Band</button>
+                </div>
+            `;
+            document.getElementById('app-modal').classList.add('active');
+        }
+
+        window.submitBandRequest = async () => {
+            const name = document.getElementById('band-req-name').value;
+            const blood = document.getElementById('band-req-blood').value;
+            const phone = document.getElementById('band-req-phone').value;
+            const address = document.getElementById('band-req-address').value;
+
+            if(!name || !blood || !phone || !address) {
+                showToast("Please fill all fields", "error");
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, "band_requests"), {
+                    userId: currentUser.uid,
+                    userName: name,
+                    bloodGroup: blood,
+                    emergencyPhone: phone,
+                    address: address,
+                    status: 'pending',
+                    requestDate: new Date()
+                });
+                closeModal();
+                showToast("Request Sent Successfully!", "success");
+            } catch (e) {
+                console.error(e);
+                showToast("Error sending request", "error");
             }
         }
         
