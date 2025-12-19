@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ElderWorks Complete Pro</title>
+    <title>ElderWorks Smart View</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <script>
         tailwind.config = {
             theme: {
@@ -37,14 +37,86 @@
         .fade-in { animation: fadeIn 0.4s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* Modern Inputs */
         .nice-input {
             width: 100%; padding: 16px; font-size: 1.1rem; border-radius: 16px;
             border: 2px solid #e2e8f0; outline: none; transition: all 0.3s; background: white; margin-bottom: 10px;
         }
         .nice-input:focus { border-color: #0d9488; box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1); }
 
-        /* File Upload */
+        /* --- NEW: Accessibility Dock (Side Menu) --- */
+        .access-dock {
+            position: fixed;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%);
+            z-index: 999;
+            display: flex;
+            flex-direction: row-reverse;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        
+        /* Main Toggle Button */
+        .access-main-btn {
+            width: 40px;
+            height: 50px;
+            background: #0d9488;
+            color: white;
+            border-radius: 10px 0 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            font-size: 1.2rem;
+        }
+
+        /* Hidden Buttons Container */
+        .access-options {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
+            padding: 10px;
+            border-radius: 10px 0 0 10px;
+            display: flex;
+            gap: 15px;
+            margin-right: -200px; /* Initially Hidden */
+            transition: margin-right 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: -5px 0 15px rgba(0,0,0,0.05);
+        }
+
+        /* When Active (Shown) */
+        .access-dock.active .access-options {
+            margin-right: 10px; /* Slide out */
+        }
+        .access-dock.active .access-main-btn {
+            display: none; /* Hide toggle when open, or change icon */
+        }
+
+        /* The Round Buttons (Like in your image) */
+        .round-btn {
+            width: 50px;
+            height: 50px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: #333;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            border: 1px solid #eee;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .round-btn:active { transform: scale(0.9); }
+        .round-btn.active { color: #0d9488; border-color: #0d9488; background: #f0fdfa; }
+
+        /* Close overlay just for the menu */
+        .menu-overlay { position: fixed; inset: 0; z-index: 998; display: none; }
+        .menu-overlay.active { display: block; }
+
+        /* --- End New Accessibility --- */
+
         .file-upload-wrapper {
             position: relative; width: 100%; height: 120px; border: 2px dashed #cbd5e1;
             border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -53,7 +125,6 @@
         }
         .file-upload-wrapper input { position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
         
-        /* Buttons */
         .btn-primary {
             background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
             color: white; padding: 16px; border-radius: 16px; font-weight: 600;
@@ -63,17 +134,6 @@
         .btn-primary:active { transform: scale(0.98); }
         .btn-secondary { background: #e2e8f0; color: #64748b; padding: 16px; border-radius: 16px; font-weight: 600; width: 100%; }
         
-        /* GPS Button Animation */
-        .btn-sharing-on { background: #ef4444; color: white; animation: pulse 2s infinite; }
-        .btn-sharing-off { background: #10b981; color: white; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
-
-        /* Accessibility Tools */
-        .access-tools { position: fixed; top: 20px; right: 20px; z-index: 50; display: flex; gap: 10px; }
-        .access-btn { width: 45px; height: 45px; background: white; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #333; cursor: pointer; border: 2px solid #e2e8f0; }
-        .access-btn.active { background: #0d9488; color: white; border-color: #0d9488; }
-
-        /* Modal */
         .modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6);
             backdrop-filter: blur(4px); z-index: 60; display: none; align-items: center; justify-content: center;
@@ -85,12 +145,10 @@
         }
         @keyframes popUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-        /* Stars */
         .star-rating { display: flex; gap: 5px; justify-content: center; margin: 15px 0; }
         .star { font-size: 2.5rem; color: #cbd5e1; cursor: pointer; transition: color 0.2s; }
         .star.selected { color: #f59e0b; }
 
-        /* Toast */
         #toast-container { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 100; }
         .toast { background: #333; color: white; padding: 12px 24px; border-radius: 30px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; animation: slideDown 0.3s ease; }
     </style>
@@ -100,9 +158,19 @@
     <div id="toast-container"></div>
     <div id="app-modal" class="modal-overlay"><div class="modal-box" id="modal-content"></div></div>
 
-    <div class="access-tools">
-        <button onclick="toggleReader()" id="btn-reader" class="access-btn"><i class="fas fa-volume-up"></i></button>
-        <button onclick="toggleZoom()" id="btn-zoom" class="access-btn"><i class="fas fa-search-plus"></i></button>
+    <div class="menu-overlay" id="menu-overlay" onclick="toggleAccessMenu()"></div>
+    <div class="access-dock" id="access-dock">
+        <div class="access-main-btn" onclick="toggleAccessMenu()">
+            <i class="fas fa-universal-access"></i>
+        </div>
+        <div class="access-options">
+            <button onclick="toggleReader()" id="btn-reader" class="round-btn">
+                <i class="fas fa-volume-up"></i>
+            </button>
+            <button onclick="toggleZoom()" id="btn-zoom" class="round-btn">
+                <i class="fas fa-search-plus"></i>
+            </button>
+        </div>
     </div>
 
     <div id="app" class="max-w-md mx-auto min-h-screen bg-white shadow-2xl overflow-hidden relative">
@@ -138,12 +206,18 @@
         let timerInt = null;
         let jobListener = null;
         let activeJobListener = null;
-        let locationWatchId = null;
 
-        // --- ACCESSIBILITY ---
+        // --- ACCESSIBILITY LOGIC (UPDATED) ---
         let isZoomed = false;
         let isReading = false;
         
+        window.toggleAccessMenu = () => {
+            const dock = document.getElementById('access-dock');
+            const overlay = document.getElementById('menu-overlay');
+            dock.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
         window.toggleZoom = () => {
             isZoomed = !isZoomed;
             document.body.style.fontSize = isZoomed ? "120%" : "100%";
@@ -248,15 +322,11 @@
             if (user) {
                 currentUser = user;
                 
-                // Real-time listener for current user (Self)
                 const docRef = doc(db, "users", user.uid);
+                // Real-time listener for current user
                 onSnapshot(docRef, (docSnap) => {
                      if (docSnap.exists()) {
                         userDoc = docSnap.data();
-                        // Update GPS button if visible
-                        if(document.getElementById('tracking-btn-container')) {
-                            updateTrackingButtonUI();
-                        }
                     }
                 });
                 
@@ -271,7 +341,7 @@
                     const qGuard = query(collection(db, "users"), where("guardianEmail", "==", user.email));
                     const guardSnap = await getDocs(qGuard);
                     if (!guardSnap.empty) {
-                        const elderId = guardSnap.docs[0].id; // Get the ID correctly
+                        const elderId = guardSnap.docs[0].id;
                         renderGuardianHome(elderId);
                     } else {
                         renderRoleSelect();
@@ -282,7 +352,6 @@
                 if(timerInt) clearInterval(timerInt);
                 if(jobListener) jobListener();
                 if(activeJobListener) activeJobListener();
-                if(locationWatchId) navigator.geolocation.clearWatch(locationWatchId);
             }
             loading.style.display = 'none';
         });
@@ -398,37 +467,6 @@
             if(el) el.innerText = diff >= 3600 ? `${hrs}:${mins}:${secs}` : `${mins}:${secs}`;
         }
 
-        // --- LOCATION TRACKING (GPS) ---
-        window.toggleLocationShare = async () => {
-            const isSharing = userDoc.isSharingLocation;
-            if(isSharing) {
-                if(locationWatchId) navigator.geolocation.clearWatch(locationWatchId);
-                await updateDoc(doc(db, "users", currentUser.uid), { isSharingLocation: false });
-                showToast("Location sharing stopped");
-                updateTrackingButtonUI();
-            } else {
-                if ("geolocation" in navigator) {
-                    showToast("Starting location sharing...");
-                    await updateDoc(doc(db, "users", currentUser.uid), { isSharingLocation: true });
-                    locationWatchId = navigator.geolocation.watchPosition(async (position) => {
-                        const { latitude, longitude } = position.coords;
-                        await updateDoc(doc(db, "users", currentUser.uid), { currentLocation: { lat: latitude, lng: longitude, lastUpdated: new Date() } });
-                    }, (error) => { showToast("GPS Error: " + error.message, "error"); updateDoc(doc(db, "users", currentUser.uid), { isSharingLocation: false }); }, { enableHighAccuracy: true });
-                    updateTrackingButtonUI();
-                } else { showToast("GPS not supported", "error"); }
-            }
-        }
-        
-        window.updateTrackingButtonUI = () => {
-            const btnContainer = document.getElementById('tracking-btn-container');
-            if(!btnContainer) return;
-            if(userDoc.isSharingLocation) {
-                btnContainer.innerHTML = `<button onclick="toggleLocationShare()" class="w-full py-4 rounded-2xl font-bold text-lg shadow-lg btn-sharing-on"><i class="fas fa-stop-circle mr-2"></i> Stop Sharing Location</button><p class="text-xs text-center mt-1 text-red-500 font-bold">Live Tracking Active</p>`;
-            } else {
-                btnContainer.innerHTML = `<button onclick="toggleLocationShare()" class="w-full py-4 rounded-2xl font-bold text-lg shadow-lg btn-sharing-off"><i class="fas fa-map-marker-alt mr-2"></i> Share Live Location</button>`;
-            }
-        }
-
         // --- QUICK REQUESTS ---
         window.quickRequest = (title, desc, icon, colorInfo, bgInfo) => {
             document.getElementById('modal-content').innerHTML = `
@@ -481,12 +519,11 @@
             }
         }
 
-        // --- JOB DETAILS (WITH WHATSAPP & CALL) ---
+        // --- JOB DETAILS (UPDATED WITH WHATSAPP & CALL) ---
         window.renderJobDetails = (job) => {
             let locEnc = encodeURIComponent(job.location || '');
             let rawPhone = job.contactPhone || '';
             let waPhone = rawPhone.replace(/[^0-9]/g, '');
-            // Sri Lanka Format Fix
             if(waPhone.startsWith('0')) waPhone = '94' + waPhone.substring(1);
 
             let payBadge = job.paymentMethod === 'coin' ? `<span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-coins"></i> Elder Coin</span>` : `<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-money-bill-wave"></i> Cash</span>`;
@@ -522,8 +559,8 @@
                         <p class="text-sm text-gray-600 mb-3"><i class="fas fa-map-pin mr-2"></i> ${job.location || 'No location'}</p>
                         
                         <div class="grid grid-cols-2 gap-3 mb-4">
-                            <a href="tel:${rawPhone}" class="bg-white border border-gray-200 text-gray-700 py-3 rounded-xl font-bold text-center shadow-sm hover:bg-gray-50 transition"><i class="fas fa-phone-alt text-green-600 mr-1"></i> Call</a>
-                            <a href="https://wa.me/${waPhone}" target="_blank" class="bg-green-500 text-white py-3 rounded-xl font-bold text-center shadow-md hover:bg-green-600 transition"><i class="fab fa-whatsapp text-xl mr-1"></i> WhatsApp</a>
+                            <a href="tel:${rawPhone}" class="bg-white border border-gray-200 text-gray-700 py-3 rounded-xl font-bold text-center shadow-sm hover:bg-gray-50"><i class="fas fa-phone-alt text-green-600 mr-1"></i> Call</a>
+                            <a href="https://wa.me/${waPhone}" target="_blank" class="bg-green-500 text-white py-3 rounded-xl font-bold text-center shadow-md hover:bg-green-600"><i class="fab fa-whatsapp text-xl mr-1"></i> WhatsApp</a>
                         </div>
 
                         <div class="flex gap-2">
@@ -571,39 +608,88 @@
                 </div>`;
         }
 
-        // --- GUARDIAN HOME (UPDATED FOR REALTIME MAPS) ---
+        // --- GUARDIAN HOME (UPDATED FOR JOB MAP & NO GPS) ---
         window.renderGuardianHome = (elderId) => {
+            document.getElementById('main-content').innerHTML = `
+                <div class="flex flex-col h-screen bg-gray-50 items-center justify-center">
+                    <p class="text-gray-500 animate-pulse">Connecting...</p>
+                </div>`;
+
             const elderDocRef = doc(db, "users", elderId);
             onSnapshot(elderDocRef, (snap) => {
                 if(snap.exists()){
                     const elderData = snap.data();
                     let medsHtml = "";
-                    if(elderData.medicines && elderData.medicines.length > 0) { elderData.medicines.forEach(m => { medsHtml += `<div class="flex justify-between items-center py-2 border-b border-gray-100"><span class="font-bold">${m.name}</span><span class="text-primary text-sm">${m.time}</span></div>`; }); } else { medsHtml = "<p class='text-gray-400 text-sm'>No medicines added.</p>"; }
-                    
-                    let mapHtml = "";
-                    if(elderData.isSharingLocation && elderData.currentLocation) {
-                        const { lat, lng, lastUpdated } = elderData.currentLocation;
-                        const timeStr = lastUpdated ? new Date(lastUpdated.seconds * 1000).toLocaleTimeString() : 'Just now';
-                        mapHtml = `<div class="bg-teal-50 border border-teal-200 p-4 rounded-xl mt-4 animate-pulse"><div class="flex justify-between mb-2"><h4 class="font-bold text-teal-800"><i class="fas fa-map-marker-alt text-red-500"></i> Location Active</h4><span class="text-xs text-gray-500">${timeStr}</span></div><a href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" target="_blank" class="block w-full bg-blue-600 text-white text-center py-3 rounded-lg font-bold shadow-md hover:bg-blue-700 transition"><i class="fas fa-external-link-alt"></i> Open Google Maps</a></div>`;
-                    } else { mapHtml = `<div class="bg-gray-100 p-4 rounded-xl mt-4 text-center text-gray-500 text-sm"><i class="fas fa-map-marker-slash text-2xl mb-2 block"></i>Location sharing is OFF</div>`; }
+                    if(elderData.medicines && elderData.medicines.length > 0) { 
+                        elderData.medicines.forEach(m => { 
+                            medsHtml += `<div class="flex justify-between items-center py-2 border-b border-gray-100"><span class="font-bold">${m.name}</span><span class="text-primary text-sm">${m.time}</span></div>`; 
+                        }); 
+                    } else { medsHtml = "<p class='text-gray-400 text-sm'>No medicines added.</p>"; }
 
                     document.getElementById('main-content').innerHTML = `
                         <div class="flex flex-col h-screen bg-gray-50">
-                            <div class="bg-teal-800 text-white p-6 pb-12 rounded-b-[40px] shadow-lg"><div class="flex justify-between items-start"><div><p class="text-teal-200 text-sm uppercase font-bold tracking-widest">Guardian Portal</p><h1 class="text-3xl font-bold mt-2">Monitoring:</h1><h2 class="text-2xl">${elderData.name}</h2></div><button onclick="handleLogout()" class="bg-teal-900/50 p-2 rounded-lg text-sm"><i class="fas fa-sign-out-alt"></i> Logout</button></div></div>
+                            <div class="bg-teal-800 text-white p-6 pb-12 rounded-b-[40px] shadow-lg">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="text-teal-200 text-sm uppercase font-bold tracking-widest">Guardian Portal</p>
+                                        <h1 class="text-3xl font-bold mt-2">Monitoring:</h1>
+                                        <h2 class="text-2xl">${elderData.name}</h2>
+                                    </div>
+                                    <button onclick="handleLogout()" class="bg-teal-900/50 p-2 rounded-lg text-sm hover:bg-teal-700 transition"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                                </div>
+                            </div>
+                            
                             <div class="flex-1 overflow-y-auto px-6 -mt-8 pb-10">
-                                <div class="bg-white p-6 rounded-3xl shadow-lg mb-6"><h3 class="font-bold text-gray-700 mb-2"><i class="fas fa-street-view text-purple-500 mr-2"></i> Current Location</h3>${mapHtml}</div>
-                                <div class="bg-white p-6 rounded-3xl shadow-lg mb-6"><h3 class="font-bold text-gray-700 mb-4"><i class="fas fa-heartbeat text-red-500 mr-2"></i> Health Status</h3><p class="text-gray-600 text-sm mb-2 bg-gray-50 p-3 rounded-lg">${elderData.health || 'No conditions listed.'}</p><h4 class="font-bold text-gray-700 mt-4 mb-2 text-sm">Medicines Schedule</h4><div class="bg-gray-50 p-3 rounded-lg">${medsHtml}</div></div>
-                                <div class="bg-white p-6 rounded-3xl shadow-lg mb-6"><h3 class="font-bold text-gray-700 mb-2"><i class="fas fa-briefcase text-blue-500 mr-2"></i> Work Status</h3><div id="guardian-job-status" class="text-sm text-gray-500">Checking...</div></div>
+                                <div class="bg-white p-6 rounded-3xl shadow-lg mb-6 transform transition hover:scale-[1.02]">
+                                    <h3 class="font-bold text-gray-700 mb-2"><i class="fas fa-map-marked-alt text-purple-500 mr-2"></i> Current Job Location</h3>
+                                    <div id="guardian-map-area" class="bg-gray-50 p-4 rounded-xl text-center text-sm text-gray-500 border border-gray-100">
+                                        Checking active jobs...
+                                    </div>
+                                </div>
+
+                                <div class="bg-white p-6 rounded-3xl shadow-lg mb-6">
+                                    <h3 class="font-bold text-gray-700 mb-4"><i class="fas fa-heartbeat text-red-500 mr-2"></i> Health Status</h3>
+                                    <p class="text-gray-600 text-sm mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100">${elderData.health || 'No conditions listed.'}</p>
+                                    <h4 class="font-bold text-gray-700 mt-4 mb-2 text-sm border-t pt-4">Medicines Schedule</h4>
+                                    <div class="bg-gray-50 p-3 rounded-lg border border-gray-100">${medsHtml}</div>
+                                </div>
                             </div>
                         </div>`;
+                    
+                    // Trigger Job Check
+                    checkGuardianJobStatus(elderId);
                 }
             });
-            
+        }
+
+        window.checkGuardianJobStatus = (elderId) => {
             const q = query(collection(db, "jobs"), where("workerId", "==", elderId), where("status", "==", "active"));
             onSnapshot(q, (snap) => {
-                const el = document.getElementById('guardian-job-status');
-                if(!el) return;
-                if(!snap.empty) { const job = snap.docs[0].data(); el.innerHTML = `<div class="bg-green-50 text-green-700 p-3 rounded-lg border border-green-200 font-bold"><i class="fas fa-check-circle"></i> Currently working on: ${job.title}</div><p class="mt-2 text-xs">Started at: ${new Date(job.startTime).toLocaleTimeString()}</p>`; } else { el.innerHTML = "No active jobs right now."; }
+                const mapEl = document.getElementById('guardian-map-area');
+                if(!mapEl) return;
+                
+                if(!snap.empty) {
+                    const job = snap.docs[0].data();
+                    const locEncoded = encodeURIComponent(job.location || '');
+                    
+                    mapEl.innerHTML = `
+                        <div class="text-left mb-3">
+                            <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">Active Job</span>
+                            <p class="font-bold text-lg text-gray-800 mt-1">${job.title}</p>
+                            <p class="text-xs text-gray-500"><i class="fas fa-map-pin"></i> ${job.location || 'Location not specified'}</p>
+                        </div>
+                        <a href="https://www.google.com/maps/search/?api=1&query=${locEncoded}" target="_blank" class="block w-full bg-blue-600 text-white text-center py-3 rounded-lg font-bold shadow-md hover:bg-blue-700 transition">
+                            <i class="fas fa-external-link-alt mr-2"></i> View on Map
+                        </a>
+                    `;
+                } else {
+                    mapEl.innerHTML = `
+                        <div class="py-4">
+                            <i class="fas fa-bed text-4xl text-gray-300 mb-2"></i>
+                            <p>No active job at the moment.</p>
+                        </div>
+                    `;
+                }
             });
         }
 
@@ -614,7 +700,7 @@
                     <div class="p-6 bg-white shadow-sm flex justify-between items-center sticky top-0 z-10"><div><p class="text-gray-500 text-sm">Hello,</p><h2 class="text-xl font-bold text-gray-800">${userDoc.name}</h2></div><div class="bg-yellow-100 px-4 py-2 rounded-full flex items-center gap-2"><i class="fas fa-coins text-yellow-600"></i><span class="font-bold text-yellow-700">${userDoc.coins || 0}</span></div></div>
                     <div class="flex-1 overflow-y-auto p-6 pb-24">
                         <div class="bg-red-50 border border-red-100 p-6 rounded-3xl mb-6 text-center relative overflow-hidden shadow-sm"><h3 class="text-red-600 font-bold text-lg mb-2">Emergency?</h3><button onclick="renderEmergency()" class="btn-danger w-full py-4 text-xl shadow-red-300 animate-pulse"><i class="fas fa-phone-alt mr-2"></i> GET HELP</button></div>
-                        <div id="tracking-btn-container" class="mb-6"></div>
+                        
                         <h3 class="font-bold text-gray-700 mb-3 text-lg">Quick Requests</h3>
                         <div class="grid grid-cols-3 gap-3 mb-6">
                             <div onclick="quickRequest('Medicine', 'Bring medicines', 'fas fa-pills', 'text-pink-500', 'bg-pink-50')" class="bg-white p-4 rounded-2xl shadow-sm text-center border border-gray-100 cursor-pointer hover:bg-pink-50 transition"><div class="w-10 h-10 mx-auto bg-pink-100 rounded-full flex items-center justify-center mb-2 text-pink-500"><i class="fas fa-pills"></i></div><p class="text-xs font-bold text-gray-600">Medicine</p></div>
@@ -630,7 +716,7 @@
                     </div>
                     <div class="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-100 flex justify-around p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]"><button onclick="renderSeekerHome()" class="text-primary flex flex-col items-center"><i class="fas fa-home text-xl mb-1"></i><span class="text-xs">Home</span></button><button onclick="renderTipsPage()" class="text-gray-400 flex flex-col items-center hover:text-primary"><i class="fas fa-book-open text-xl mb-1"></i><span class="text-xs">Tips</span></button><button onclick="renderSeekerWallet()" class="text-gray-400 flex flex-col items-center hover:text-primary"><i class="fas fa-wallet text-xl mb-1"></i><span class="text-xs">Wallet</span></button><button onclick="handleLogout()" class="text-gray-400 flex flex-col items-center hover:text-red-500"><i class="fas fa-sign-out-alt text-xl mb-1"></i><span class="text-xs">Logout</span></button></div>
                 </div>`;
-            loadMeds(); loadSeekerJobs(); checkActiveJob(); updateTrackingButtonUI();
+            loadMeds(); loadSeekerJobs(); checkActiveJob();
         }
 
         window.renderEmergency = () => {
