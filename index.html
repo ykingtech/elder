@@ -32,14 +32,11 @@
             font-family: 'Poppins', sans-serif; 
             background-color: #f0fdfa;
             -webkit-tap-highlight-color: transparent;
+            transition: font-size 0.3s ease;
         }
         .fade-in { animation: fadeIn 0.4s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-
         .nice-input {
             width: 100%; padding: 16px; font-size: 1.1rem; border-radius: 16px;
             border: 2px solid #e2e8f0; outline: none; transition: all 0.3s; background: white; margin-bottom: 10px;
@@ -47,14 +44,13 @@
         .nice-input:focus { border-color: #0d9488; box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1); }
 
         .file-upload-wrapper {
-            position: relative; width: 100%; height: 150px; border: 2px dashed #cbd5e1;
+            position: relative; width: 100%; height: 120px; border: 2px dashed #cbd5e1;
             border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center;
             background: #f8fafc; color: #64748b; cursor: pointer; overflow: hidden;
             transition: all 0.3s; margin-bottom: 15px;
         }
         .file-upload-wrapper input { position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
-        .preview-img { width: 100%; height: 100%; object-fit: cover; display: none; position: absolute; top: 0; left: 0; z-index: 5; }
-
+        
         .btn-primary {
             background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
             color: white; padding: 16px; border-radius: 16px; font-weight: 600;
@@ -62,12 +58,15 @@
             box-shadow: 0 4px 15px rgba(13, 148, 136, 0.3); transition: transform 0.2s;
         }
         .btn-primary:active { transform: scale(0.98); }
-        .btn-danger { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
         .btn-secondary { background: #e2e8f0; color: #64748b; padding: 16px; border-radius: 16px; font-weight: 600; width: 100%; }
+
+        .access-tools { position: fixed; top: 20px; right: 20px; z-index: 50; display: flex; gap: 10px; }
+        .access-btn { width: 45px; height: 45px; background: white; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #333; cursor: pointer; border: 2px solid #e2e8f0; }
+        .access-btn.active { background: #0d9488; color: white; border-color: #0d9488; }
 
         .modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(4px); z-index: 50; display: none; align-items: center; justify-content: center;
+            backdrop-filter: blur(4px); z-index: 60; display: none; align-items: center; justify-content: center;
         }
         .modal-overlay.active { display: flex; }
         .modal-box {
@@ -76,15 +75,19 @@
         }
         @keyframes popUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-        #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 100; }
+        #toast-container { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 100; }
         .toast { background: #333; color: white; padding: 12px 24px; border-radius: 30px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; animation: slideDown 0.3s ease; }
-        @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body class="text-gray-800 min-h-screen pb-20">
 
     <div id="toast-container"></div>
     <div id="app-modal" class="modal-overlay"><div class="modal-box" id="modal-content"></div></div>
+
+    <div class="access-tools">
+        <button onclick="toggleReader()" id="btn-reader" class="access-btn"><i class="fas fa-volume-up"></i></button>
+        <button onclick="toggleZoom()" id="btn-zoom" class="access-btn"><i class="fas fa-search-plus"></i></button>
+    </div>
 
     <div id="app" class="max-w-md mx-auto min-h-screen bg-white shadow-2xl overflow-hidden relative">
         <div id="loading-screen" class="absolute inset-0 bg-white z-50 flex flex-col items-center justify-center">
@@ -117,6 +120,34 @@
         let currentUser = null;
         let userDoc = null;
         let timerInt = null;
+        // Listeners
+        let jobListener = null;
+        let activeJobListener = null;
+
+        // --- ACCESSIBILITY ---
+        let isZoomed = false;
+        let isReading = false;
+        
+        window.toggleZoom = () => {
+            isZoomed = !isZoomed;
+            document.body.style.fontSize = isZoomed ? "120%" : "100%";
+            document.getElementById('btn-zoom').classList.toggle('active');
+        }
+
+        window.toggleReader = () => {
+            if (isReading) {
+                window.speechSynthesis.cancel();
+                isReading = false;
+                document.getElementById('btn-reader').classList.remove('active');
+            } else {
+                const text = document.getElementById('main-content').innerText;
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.onend = () => { isReading = false; document.getElementById('btn-reader').classList.remove('active'); };
+                window.speechSynthesis.speak(utterance);
+                isReading = true;
+                document.getElementById('btn-reader').classList.add('active');
+            }
+        }
 
         function showToast(msg, type = 'success') {
             const container = document.getElementById('toast-container');
@@ -137,13 +168,13 @@
                     img.src = event.target.result;
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        const maxWidth = 800; 
+                        const maxWidth = 600; 
                         const scaleSize = maxWidth / img.width;
                         canvas.width = maxWidth;
                         canvas.height = img.height * scaleSize;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        resolve(canvas.toDataURL('image/jpeg', 0.7)); 
+                        resolve(canvas.toDataURL('image/jpeg', 0.6)); 
                     }
                 }
                 reader.onerror = (error) => reject(error);
@@ -157,11 +188,16 @@
                     const img = document.getElementById(imgId);
                     img.src = e.target.result;
                     img.style.display = 'block';
-                    const textDiv = input.parentElement.querySelector('div');
-                    if(textDiv) textDiv.style.display = 'none';
+                    input.parentElement.querySelector('div').style.display = 'none';
                 }
                 reader.readAsDataURL(input.files[0]);
             }
+        }
+        
+        window.updateFileCount = (input) => {
+            const count = input.files.length;
+            const textDiv = input.parentElement.querySelector('.upload-text');
+            if(count > 0) textDiv.innerHTML = `<i class="fas fa-check-circle text-green-500 text-2xl"></i><br>${count} Photos Selected`;
         }
 
         window.closeModal = () => document.getElementById('app-modal').classList.remove('active');
@@ -204,11 +240,14 @@
             } else {
                 renderLogin();
                 if(timerInt) clearInterval(timerInt);
+                // Clear listeners on logout
+                if(jobListener) jobListener();
+                if(activeJobListener) activeJobListener();
             }
             loading.style.display = 'none';
         });
 
-        // --- MEDICINE REMINDER SYSTEM ---
+        // --- MEDICINE REMINDER ---
         if ("Notification" in window) {
             try { Notification.requestPermission(); } catch(e){}
         }
@@ -234,30 +273,16 @@
             showToast(`💊 Time to take: ${medName}`);
             if ("Notification" in window && Notification.permission === "granted") {
                 try {
-                    new Notification("Medicine Reminder", { 
-                        body: `It's time to take ${medName}`,
-                        icon: "https://cdn-icons-png.flaticon.com/512/883/883407.png"
-                    });
+                    new Notification("Medicine Reminder", { body: `It's time to take ${medName}`, icon: "https://cdn-icons-png.flaticon.com/512/883/883407.png" });
                 } catch(e) {}
             }
         }
 
-        // --- TIMER & JOB LOGIC ---
-        window.acceptJob = async (id) => {
-            try {
-                await updateDoc(doc(db, "jobs", id), { 
-                    status: 'active', 
-                    workerId: currentUser.uid, 
-                    workerName: userDoc.name,
-                    startTime: Date.now() 
-                });
-                showToast("Job Accepted!");
-            } catch (e) { showToast("Error accepting", "error"); }
-        }
-
+        // --- TIMER & ACTIVE JOB LOGIC ---
         window.checkActiveJob = () => {
+            if(activeJobListener) activeJobListener(); // Remove old listener
             const q = query(collection(db, "jobs"), where("workerId", "==", currentUser.uid), where("status", "==", "active"));
-            onSnapshot(q, async (snap) => {
+            activeJobListener = onSnapshot(q, async (snap) => {
                 const card = document.getElementById('active-job-card');
                 if(!card) return;
                 
@@ -269,16 +294,24 @@
                         return;
                     }
                     card.classList.remove('hidden');
+                    
+                    let insuranceBtn = '';
+                    if(userDoc.insuranceProvider) {
+                        insuranceBtn = `<a href="tel:${userDoc.insurancePhone || '1990'}" class="block mt-3 bg-red-600 text-white text-center py-2 rounded-lg font-bold animate-pulse"><i class="fas fa-first-aid"></i> Call ${userDoc.insuranceProvider}</a>`;
+                    }
+
                     card.innerHTML = `
                         <div class="bg-blue-900 text-white p-6 rounded-3xl shadow-xl relative overflow-hidden">
                             <div class="absolute top-0 right-0 w-32 h-32 bg-blue-800 rounded-full -mr-10 -mt-10 opacity-50"></div>
-                            <h3 class="text-blue-200 text-sm font-bold uppercase tracking-wider mb-1">Ongoing Job</h3>
+                            <h3 class="text-blue-200 text-sm font-bold uppercase tracking-wider mb-1">Ongoing Job: ${job.title || 'Job'}</h3>
                             <div class="text-4xl font-mono font-bold mb-2" id="timer">Loading...</div>
-                            <p class="text-sm opacity-90">${job.description}</p>
-                            <div class="text-xs bg-white/20 p-2 rounded-lg mt-2">
+                            <p class="text-sm opacity-90">${job.description ? job.description.substring(0,50)+'...' : ''}</p>
+                            <div class="text-xs bg-white/20 p-2 rounded-lg mt-2 mb-2">
                                 <p><i class="fas fa-map-marker-alt"></i> ${job.location || 'Location N/A'}</p>
                                 <p><i class="fas fa-phone"></i> ${job.contactPhone || 'Phone N/A'}</p>
                             </div>
+                            <button onclick="finishJobSeeker('${docSnap.id}', ${job.startTime}, ${job.duration})" class="w-full bg-green-500 text-white py-2 rounded-lg font-bold shadow mb-2"><i class="fas fa-check-circle"></i> Mark as Done</button>
+                            ${insuranceBtn}
                         </div>`;
                     startTimer(job.startTime);
                 } else {
@@ -289,6 +322,25 @@
                     }
                 }
             });
+        }
+
+        window.finishJobSeeker = async (id, startTime, durationMins) => {
+            const now = Date.now();
+            const elapsedMs = now - startTime;
+            const requiredMs = durationMins * 60 * 1000;
+
+            if (elapsedMs < requiredMs) {
+                const remainingMins = Math.ceil((requiredMs - elapsedMs) / 60000);
+                showToast(`Time not finished! ${remainingMins} mins left.`, "error");
+                return;
+            }
+
+            if(confirm("Are you sure you finished this job?")) {
+                await updateDoc(doc(db, "jobs", id), { status: 'completed', completedAt: new Date() });
+                if(timerInt) clearInterval(timerInt);
+                document.getElementById('active-job-card').classList.add('hidden');
+                showToast("Job Marked as Completed!");
+            }
         }
 
         function startTimer(startTime) {
@@ -308,228 +360,139 @@
             if(el) el.innerText = diff >= 3600 ? `${hrs}:${mins}:${secs}` : `${mins}:${secs}`;
         }
 
-        // --- UI RENDERING ---
+        // --- JOB ACCEPT FIX ---
+        window.acceptJob = async (id) => {
+            try {
+                await updateDoc(doc(db, "jobs", id), { 
+                    status: 'active', 
+                    workerId: currentUser.uid, 
+                    workerName: userDoc.name,
+                    startTime: Date.now() 
+                });
+                showToast("Job Accepted!");
+                // ★★★ KEY FIX: Navigate back to Home to see the Active Job ★★★
+                renderSeekerHome();
+            } catch (e) { showToast("Error accepting", "error"); }
+        }
+
+        // --- INSURANCE PAGE ---
+        window.renderInsurancePage = () => {
+             document.getElementById('main-content').innerHTML = `
+                <div class="p-6 h-screen bg-white fade-in overflow-y-auto">
+                    <button onclick="renderSeekerHome()" class="mb-4 text-gray-500 font-bold"><i class="fas fa-arrow-left"></i> Back</button>
+                    <h2 class="text-2xl font-bold mb-6 text-gray-800">Worker Insurance</h2>
+                    <p class="text-gray-500 mb-6 text-sm">Select an insurance provider to get covered while you work.</p>
+                    <div class="space-y-4">
+                        <div onclick="selectInsurance('Ceylinco', '0112393939')" class="border-2 ${userDoc.insuranceProvider === 'Ceylinco' ? 'border-green-500 bg-green-50' : 'border-gray-200'} p-4 rounded-2xl cursor-pointer hover:shadow-lg transition"><div class="flex items-center gap-4"><div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600 font-bold"><i class="fas fa-shield-alt"></i></div><div><h3 class="font-bold text-lg">Ceylinco VIP</h3><p class="text-xs text-gray-500">Accident Cover up to 1Mn</p></div></div></div>
+                        <div onclick="selectInsurance('AIA', '0112310310')" class="border-2 ${userDoc.insuranceProvider === 'AIA' ? 'border-green-500 bg-green-50' : 'border-gray-200'} p-4 rounded-2xl cursor-pointer hover:shadow-lg transition"><div class="flex items-center gap-4"><div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold"><i class="fas fa-user-shield"></i></div><div><h3 class="font-bold text-lg">AIA Insurance</h3><p class="text-xs text-gray-500">Health & Life Coverage</p></div></div></div>
+                        <div onclick="selectInsurance('Sri Lanka Insurance', '0112357357')" class="border-2 ${userDoc.insuranceProvider === 'Sri Lanka Insurance' ? 'border-green-500 bg-green-50' : 'border-gray-200'} p-4 rounded-2xl cursor-pointer hover:shadow-lg transition"><div class="flex items-center gap-4"><div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600 font-bold"><i class="fas fa-university"></i></div><div><h3 class="font-bold text-lg">Sri Lanka Insurance</h3><p class="text-xs text-gray-500">State Approved Cover</p></div></div></div>
+                    </div>
+                </div>`;
+        }
+
+        window.selectInsurance = async (provider, phone) => {
+            if(confirm(`Select ${provider} as your insurance?`)) {
+                await updateDoc(doc(db, "users", currentUser.uid), { insuranceProvider: provider, insurancePhone: phone });
+                userDoc.insuranceProvider = provider;
+                userDoc.insurancePhone = phone;
+                showToast("Insurance Updated!");
+                renderInsurancePage();
+            }
+        }
+
+        // --- JOB DETAILS VIEW ---
+        window.renderJobDetails = (job) => {
+            let locEnc = encodeURIComponent(job.location || '');
+            let payBadge = job.paymentMethod === 'coin' 
+                        ? `<span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-coins"></i> Elder Coin</span>`
+                        : `<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-money-bill-wave"></i> Cash</span>`;
+            
+            let galleryHTML = '';
+            if (job.jobImages && job.jobImages.length > 0) {
+                galleryHTML = `<div class="flex overflow-x-auto gap-2 mb-6 pb-2 snap-x">`;
+                job.jobImages.forEach(img => {
+                    galleryHTML += `<img src="${img}" class="w-64 h-48 object-cover rounded-2xl shadow-md snap-center flex-shrink-0">`;
+                });
+                galleryHTML += `</div>`;
+            } else if (job.jobImage) {
+                galleryHTML = `<img src="${job.jobImage}" class="w-full h-56 object-cover rounded-3xl mb-6 shadow-md">`;
+            }
+
+            let reqsHTML = '';
+            if(job.requirements) {
+                let lines = job.requirements.split('\n').filter(line => line.trim() !== '');
+                if(lines.length > 0) {
+                    reqsHTML = `<div class="bg-gray-50 p-4 rounded-2xl mb-4"><h3 class="font-bold text-gray-700 mb-2"><i class="fas fa-list-ul text-primary"></i> Requirements</h3><ul class="text-sm text-gray-600 space-y-2">`;
+                    lines.forEach(line => {
+                        reqsHTML += `<li><i class="fas fa-check-circle text-green-500 mr-2"></i>${line}</li>`;
+                    });
+                    reqsHTML += `</ul></div>`;
+                }
+            }
+
+            document.getElementById('main-content').innerHTML = `
+                <div class="p-6 h-screen bg-white fade-in overflow-y-auto pb-24">
+                    <button onclick="renderSeekerHome()" class="mb-4 text-gray-500 font-bold"><i class="fas fa-arrow-left"></i> Back to Jobs</button>
+                    ${galleryHTML}
+                    <div class="flex justify-between items-start mb-4"><h1 class="text-2xl font-bold text-gray-800">${job.title || job.description}</h1>${payBadge}</div>
+                    <p class="text-gray-600 mb-6">${job.description}</p>
+                    ${reqsHTML}
+                    <div class="bg-blue-50 p-4 rounded-2xl mb-4"><h3 class="font-bold text-blue-800 mb-2"><i class="far fa-clock"></i> Schedule</h3><p class="text-sm text-gray-700"><strong>Duration:</strong> ${job.duration} Minutes</p><p class="text-sm text-gray-700"><strong>Rate:</strong> ${job.price} ${job.paymentMethod == 'coin'?'EC':'LKR'}</p></div>
+                    <div class="bg-gray-50 p-4 rounded-2xl mb-6">
+                        <h3 class="font-bold text-gray-700 mb-2"><i class="fas fa-map-marker-alt text-red-500"></i> Location & Contact</h3>
+                        <p class="text-sm text-gray-600 mb-1"><i class="fas fa-map-pin mr-2"></i> ${job.location || 'No location provided'}</p>
+                        <p class="text-sm text-gray-600 mb-3"><i class="fas fa-phone mr-2"></i> ${job.contactPhone || 'No Phone'}</p>
+                        <div class="flex gap-2"><a href="https://m.uber.com/ul/?action=setPickup&dropoff[formatted_address]=${locEnc}" target="_blank" class="flex-1 bg-black text-white py-2 rounded-xl text-center text-sm font-bold shadow"><i class="fab fa-uber"></i> Uber</a><a href="https://www.google.com/maps/search/?api=1&query=${locEnc}" target="_blank" class="flex-1 bg-red-600 text-white py-2 rounded-xl text-center text-sm font-bold shadow"><i class="fas fa-map-marked-alt"></i> PickMe (Map)</a></div>
+                    </div>
+                    <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100 mb-20"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-orange-200 rounded-full flex items-center justify-center text-orange-600"><i class="fas fa-shield-alt"></i></div><div><h4 class="font-bold text-orange-800">Safety First</h4><p class="text-xs text-orange-700">Insurance coverage is active during this job.</p></div></div></div>
+                    <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 max-w-md mx-auto"><button onclick="acceptJob('${job.id}')" class="w-full py-4 bg-primary text-white rounded-2xl font-bold text-lg shadow-lg shadow-teal-200">Accept Job</button></div>
+                </div>`;
+        }
+
+        // --- RENDER VIEWS ---
         window.renderLogin = () => {
             document.getElementById('main-content').innerHTML = `
-                <div class="p-8 pt-20 fade-in flex flex-col h-screen justify-center">
-                    <div class="text-center mb-10">
-                        <div class="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                            <i class="fas fa-hands-holding-circle text-4xl text-primary"></i>
-                        </div>
-                        <h1 class="text-3xl font-bold text-gray-800">ElderWorks</h1>
-                        <p class="text-gray-500 mt-2">Connecting Generations</p>
-                    </div>
-                    <div class="space-y-4">
-                        <input type="text" id="login-email" class="nice-input" placeholder="Email or Username">
-                        <input type="password" id="login-pass" class="nice-input" placeholder="Password">
-                        <button onclick="handleLogin()" class="btn-primary mt-4">Log In</button>
-                        <button onclick="handleGoogle()" class="w-full p-4 border-2 border-gray-200 rounded-2xl flex items-center justify-center gap-3 font-semibold hover:bg-gray-50 transition">
-                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6"> <span>Google Login</span>
-                        </button>
-                    </div>
-                    <p class="text-center mt-8 text-gray-500">No account? <button onclick="renderRegister()" class="text-primary font-bold">Sign Up</button></p>
-                </div>`;
+                <div class="p-8 pt-20 fade-in flex flex-col h-screen justify-center"><div class="text-center mb-10"><div class="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-4"><i class="fas fa-hands-holding-circle text-4xl text-primary"></i></div><h1 class="text-3xl font-bold text-gray-800">ElderWorks</h1><p class="text-gray-500 mt-2">Connecting Generations</p></div><div class="space-y-4"><input type="text" id="login-email" class="nice-input" placeholder="Email or Username"><input type="password" id="login-pass" class="nice-input" placeholder="Password"><button onclick="handleLogin()" class="btn-primary mt-4">Log In</button><button onclick="handleGoogle()" class="w-full p-4 border-2 border-gray-200 rounded-2xl flex items-center justify-center gap-3 font-semibold hover:bg-gray-50 transition"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-6"> <span>Google Login</span></button></div><p class="text-center mt-8 text-gray-500">No account? <button onclick="renderRegister()" class="text-primary font-bold">Sign Up</button></p></div>`;
         }
 
         window.renderRegister = () => {
             document.getElementById('main-content').innerHTML = `
-                <div class="p-8 pt-20 fade-in">
-                    <button onclick="renderLogin()" class="mb-6 text-gray-400"><i class="fas fa-arrow-left"></i> Back</button>
-                    <h2 class="text-3xl font-bold mb-6">Create Account</h2>
-                    <div class="space-y-4">
-                        <input type="text" id="reg-email" class="nice-input" placeholder="Email or Username">
-                        <input type="password" id="reg-pass" class="nice-input" placeholder="Create Password">
-                        <button onclick="handleRegister()" class="btn-primary">Create Account</button>
-                    </div>
-                </div>`;
+                <div class="p-8 pt-20 fade-in"><button onclick="renderLogin()" class="mb-6 text-gray-400"><i class="fas fa-arrow-left"></i> Back</button><h2 class="text-3xl font-bold mb-6">Create Account</h2><div class="space-y-4"><input type="text" id="reg-email" class="nice-input" placeholder="Email or Username"><input type="password" id="reg-pass" class="nice-input" placeholder="Create Password"><button onclick="handleRegister()" class="btn-primary">Create Account</button></div></div>`;
         }
 
         window.renderRoleSelect = () => {
             document.getElementById('main-content').innerHTML = `
-                <div class="p-6 h-screen flex flex-col justify-center fade-in">
-                    <h2 class="text-2xl font-bold text-center mb-8">Choose Your Role</h2>
-                    <div onclick="renderSeekerSetup()" class="bg-white border-2 border-primary/20 p-6 rounded-3xl shadow-lg mb-6 cursor-pointer hover:border-primary transition transform hover:scale-105">
-                        <div class="w-14 h-14 bg-teal-100 rounded-full flex items-center justify-center mb-4"><i class="fas fa-user-nurse text-2xl text-primary"></i></div>
-                        <h3 class="text-xl font-bold text-primary">I want to Work</h3>
-                    </div>
-                    <div onclick="renderProviderSetup()" class="bg-white border-2 border-purple-100 p-6 rounded-3xl shadow-lg cursor-pointer hover:border-purple-500 transition transform hover:scale-105">
-                        <div class="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center mb-4"><i class="fas fa-briefcase text-2xl text-purple-600"></i></div>
-                        <h3 class="text-xl font-bold text-purple-600">I want to Hire</h3>
-                    </div>
-                </div>`;
+                <div class="p-6 h-screen flex flex-col justify-center fade-in"><h2 class="text-2xl font-bold text-center mb-8">Choose Your Role</h2><div onclick="renderSeekerSetup()" class="bg-white border-2 border-primary/20 p-6 rounded-3xl shadow-lg mb-6 cursor-pointer hover:border-primary transition transform hover:scale-105"><div class="w-14 h-14 bg-teal-100 rounded-full flex items-center justify-center mb-4"><i class="fas fa-user-nurse text-2xl text-primary"></i></div><h3 class="text-xl font-bold text-primary">I want to Work</h3></div><div onclick="renderProviderSetup()" class="bg-white border-2 border-purple-100 p-6 rounded-3xl shadow-lg cursor-pointer hover:border-purple-500 transition transform hover:scale-105"><div class="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center mb-4"><i class="fas fa-briefcase text-2xl text-purple-600"></i></div><h3 class="text-xl font-bold text-purple-600">I want to Hire</h3></div></div>`;
         }
 
         window.renderSeekerSetup = () => {
             document.getElementById('main-content').innerHTML = `
-                <div class="p-6 fade-in">
-                    <h2 class="text-2xl font-bold mb-6">Elder Profile</h2>
-                    <div class="space-y-4">
-                        <input id="s-name" class="nice-input" placeholder="Full Name">
-                        <textarea id="s-address" class="nice-input" rows="3" placeholder="Your Address"></textarea>
-                        <textarea id="s-health" class="nice-input" rows="3" placeholder="Health Conditions"></textarea>
-                        <input type="number" id="s-hours" class="nice-input" placeholder="Max Work Hours/Day">
-                        <button onclick="saveProfile('seeker')" class="btn-primary">Save & Start</button>
-                    </div>
-                </div>`;
+                <div class="p-6 fade-in"><h2 class="text-2xl font-bold mb-6">Elder Profile</h2><div class="space-y-4"><input id="s-name" class="nice-input" placeholder="Full Name"><textarea id="s-address" class="nice-input" rows="3" placeholder="Your Address"></textarea><textarea id="s-health" class="nice-input" rows="3" placeholder="Health Conditions"></textarea><input type="number" id="s-hours" class="nice-input" placeholder="Max Work Hours/Day"><button onclick="saveProfile('seeker')" class="btn-primary">Save & Start</button></div></div>`;
         }
 
         window.renderSeekerHome = () => {
             document.getElementById('main-content').innerHTML = `
                 <div class="flex flex-col h-screen bg-gray-50">
-                    <div class="p-6 bg-white shadow-sm flex justify-between items-center sticky top-0 z-10">
-                        <div><p class="text-gray-500 text-sm">Hello,</p><h2 class="text-xl font-bold text-gray-800">${userDoc.name}</h2></div>
-                        <div class="bg-yellow-100 px-4 py-2 rounded-full flex items-center gap-2"><i class="fas fa-coins text-yellow-600"></i><span class="font-bold text-yellow-700">${userDoc.coins || 0}</span></div>
-                    </div>
-                    <div class="flex-1 overflow-y-auto p-6 pb-24">
-                        <div class="bg-red-50 border border-red-100 p-6 rounded-3xl mb-8 text-center relative overflow-hidden">
-                            <h3 class="text-red-600 font-bold text-lg mb-2">Emergency?</h3>
-                            <button onclick="renderEmergency()" class="btn-danger w-full py-4 text-xl shadow-red-300 animate-pulse"><i class="fas fa-phone-alt mr-2"></i> GET HELP</button>
-                        </div>
-                        <div id="active-job-card" class="hidden mb-6"></div>
-                        <div class="bg-white p-6 rounded-3xl shadow-sm mb-6">
-                            <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-700">Medicines</h3><button onclick="openMedicineModal()" class="text-sm bg-primary/10 text-primary px-3 py-1 rounded-full">+ Add</button></div>
-                            <div id="med-list" class="space-y-3"></div>
-                        </div>
-                        <h3 class="font-bold text-gray-700 mb-4 text-lg">Available Jobs</h3>
-                        <div id="seeker-feed" class="space-y-4"><div class="text-center py-10"><i class="fas fa-spinner fa-spin text-primary"></i></div></div>
-                    </div>
-                    <div class="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-100 flex justify-around p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]">
-                        <button class="text-primary flex flex-col items-center"><i class="fas fa-home text-xl mb-1"></i><span class="text-xs">Home</span></button>
-                        <button onclick="renderSeekerWallet()" class="text-gray-400 flex flex-col items-center"><i class="fas fa-wallet text-xl mb-1"></i><span class="text-xs">Wallet</span></button>
-                        <button onclick="handleLogout()" class="text-gray-400 flex flex-col items-center"><i class="fas fa-sign-out-alt text-xl mb-1"></i><span class="text-xs">Logout</span></button>
-                    </div>
-                </div>`;
+                    <div class="p-6 bg-white shadow-sm flex justify-between items-center sticky top-0 z-10"><div><p class="text-gray-500 text-sm">Hello,</p><h2 class="text-xl font-bold text-gray-800">${userDoc.name}</h2></div><div class="bg-yellow-100 px-4 py-2 rounded-full flex items-center gap-2"><i class="fas fa-coins text-yellow-600"></i><span class="font-bold text-yellow-700">${userDoc.coins || 0}</span></div></div>
+                    <div class="flex-1 overflow-y-auto p-6 pb-24"><div class="bg-red-50 border border-red-100 p-6 rounded-3xl mb-8 text-center relative overflow-hidden"><h3 class="text-red-600 font-bold text-lg mb-2">Emergency?</h3><button onclick="renderEmergency()" class="btn-danger w-full py-4 text-xl shadow-red-300 animate-pulse"><i class="fas fa-phone-alt mr-2"></i> GET HELP</button></div><div onclick="renderInsurancePage()" class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl mb-6 flex justify-between items-center cursor-pointer"><div><h3 class="font-bold text-indigo-800">Worker Insurance</h3><p class="text-xs text-indigo-600">${userDoc.insuranceProvider ? 'Covered by ' + userDoc.insuranceProvider : 'Get covered today'}</p></div><div class="w-10 h-10 bg-indigo-200 rounded-full flex items-center justify-center text-indigo-700"><i class="fas fa-shield-alt"></i></div></div><div id="active-job-card" class="hidden mb-6"></div><div class="bg-white p-6 rounded-3xl shadow-sm mb-6"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-700">Medicines</h3><button onclick="openMedicineModal()" class="text-sm bg-primary/10 text-primary px-3 py-1 rounded-full">+ Add</button></div><div id="med-list" class="space-y-3"></div></div><h3 class="font-bold text-gray-700 mb-4 text-lg">Available Jobs</h3><div id="seeker-feed" class="space-y-4"><div class="text-center py-10"><i class="fas fa-spinner fa-spin text-primary"></i></div></div></div>
+                    <div class="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-100 flex justify-around p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]"><button class="text-primary flex flex-col items-center"><i class="fas fa-home text-xl mb-1"></i><span class="text-xs">Home</span></button><button onclick="renderSeekerWallet()" class="text-gray-400 flex flex-col items-center"><i class="fas fa-wallet text-xl mb-1"></i><span class="text-xs">Wallet</span></button><button onclick="handleLogout()" class="text-gray-400 flex flex-col items-center"><i class="fas fa-sign-out-alt text-xl mb-1"></i><span class="text-xs">Logout</span></button></div></div>`;
             loadMeds(); loadSeekerJobs(); checkActiveJob();
         }
 
         window.renderEmergency = () => {
              document.getElementById('main-content').innerHTML = `
-                <div class="p-6 h-screen bg-red-50 fade-in flex flex-col">
-                    <button onclick="renderSeekerHome()" class="mb-4 text-gray-500 font-bold"><i class="fas fa-arrow-left"></i> Close</button>
-                    <h1 class="text-3xl font-bold text-red-600 mb-2">Emergency</h1>
-                    <div class="space-y-4 mt-8">
-                        <a href="tel:1990" class="block bg-white border-l-8 border-red-500 p-6 rounded-2xl shadow-lg flex items-center">
-                            <div class="bg-red-100 p-4 rounded-full mr-4"><i class="fas fa-ambulance text-2xl text-red-600"></i></div><div><h3 class="font-bold text-xl">1990 Ambulance</h3></div>
-                        </a>
-                        <a href="tel:119" class="block bg-white border-l-8 border-blue-800 p-6 rounded-2xl shadow-lg flex items-center">
-                            <div class="bg-blue-100 p-4 rounded-full mr-4"><i class="fas fa-user-shield text-2xl text-blue-800"></i></div><div><h3 class="font-bold text-xl">119 Police</h3></div>
-                        </a>
-                    </div>
-                </div>`;
+                <div class="p-6 h-screen bg-red-50 fade-in flex flex-col"><button onclick="renderSeekerHome()" class="mb-4 text-gray-500 font-bold"><i class="fas fa-arrow-left"></i> Close</button><h1 class="text-3xl font-bold text-red-600 mb-2">Emergency</h1><div class="space-y-4 mt-8"><a href="tel:1990" class="block bg-white border-l-8 border-red-500 p-6 rounded-2xl shadow-lg flex items-center"><div class="bg-red-100 p-4 rounded-full mr-4"><i class="fas fa-ambulance text-2xl text-red-600"></i></div><div><h3 class="font-bold text-xl">1990 Ambulance</h3></div></a><a href="tel:119" class="block bg-white border-l-8 border-blue-800 p-6 rounded-2xl shadow-lg flex items-center"><div class="bg-blue-100 p-4 rounded-full mr-4"><i class="fas fa-user-shield text-2xl text-blue-800"></i></div><div><h3 class="font-bold text-xl">119 Police</h3></div></a></div></div>`;
         }
 
         window.renderProviderSetup = () => {
             document.getElementById('main-content').innerHTML = `
-                <div class="p-6 fade-in">
-                    <h2 class="text-2xl font-bold mb-6">Provider Profile</h2>
-                    <div class="space-y-4">
-                        <input id="p-name" class="nice-input" placeholder="Your Name">
-                        <input id="p-nic" class="nice-input" placeholder="NIC Number">
-                        <input id="p-area" class="nice-input" placeholder="City / Area">
-                        <button onclick="saveProfile('provider')" class="btn-primary bg-purple-600">Save Profile</button>
-                    </div>
-                </div>`;
+                <div class="p-6 fade-in"><h2 class="text-2xl font-bold mb-6">Provider Profile</h2><div class="space-y-4"><input id="p-name" class="nice-input" placeholder="Your Name"><input id="p-nic" class="nice-input" placeholder="NIC Number"><input id="p-area" class="nice-input" placeholder="City / Area"><button onclick="saveProfile('provider')" class="btn-primary bg-purple-600">Save Profile</button></div></div>`;
         }
 
         window.renderProviderHome = () => {
             document.getElementById('main-content').innerHTML = `
-                <div class="flex flex-col h-screen bg-gray-50">
-                    <div class="bg-purple-700 text-white p-8 rounded-b-3xl shadow-lg relative">
-                        <div class="flex justify-between items-start"><div><h1 class="text-2xl font-bold">Hello, ${userDoc.name}</h1><p class="opacity-80 text-sm">Ready to hire help?</p></div><div class="text-center"><span class="block text-2xl font-bold">${userDoc.coins || 0}</span><span class="text-xs opacity-75">Elder Coins</span></div></div>
-                        <button onclick="renderPostJob()" class="absolute -bottom-6 left-6 right-6 bg-white text-purple-700 py-4 rounded-2xl shadow-xl font-bold flex items-center justify-center gap-2"><i class="fas fa-plus-circle text-xl"></i> Post New Job</button>
-                    </div>
-                    <div class="flex-1 overflow-y-auto px-6 pt-10 pb-24">
-                        <h3 class="font-bold text-gray-700 mb-4">Your Active Jobs</h3>
-                        <div id="provider-job-list" class="space-y-4 pb-4"><p class="text-center text-gray-400 mt-10">No jobs posted yet.</p></div>
-                    </div>
-                    <div class="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-100 flex justify-around p-4">
-                        <button class="text-purple-600 flex flex-col items-center"><i class="fas fa-home text-xl mb-1"></i><span class="text-xs">Home</span></button>
-                        <button onclick="renderProviderWallet()" class="text-gray-400 flex flex-col items-center"><i class="fas fa-wallet text-xl mb-1"></i><span class="text-xs">Wallet</span></button>
-                        <button onclick="handleLogout()" class="text-gray-400 flex flex-col items-center"><i class="fas fa-sign-out-alt text-xl mb-1"></i><span class="text-xs">Logout</span></button>
-                    </div>
-                </div>`;
+                <div class="flex flex-col h-screen bg-gray-50"><div class="bg-purple-700 text-white p-8 rounded-b-3xl shadow-lg relative"><div class="flex justify-between items-start"><div><h1 class="text-2xl font-bold">Hello, ${userDoc.name}</h1><p class="opacity-80 text-sm">Ready to hire help?</p></div><div class="text-center"><span class="block text-2xl font-bold">${userDoc.coins || 0}</span><span class="text-xs opacity-75">Elder Coins</span></div></div><button onclick="renderPostJob()" class="absolute -bottom-6 left-6 right-6 bg-white text-purple-700 py-4 rounded-2xl shadow-xl font-bold flex items-center justify-center gap-2"><i class="fas fa-plus-circle text-xl"></i> Post New Job</button></div><div class="flex-1 overflow-y-auto px-6 pt-10 pb-24"><h3 class="font-bold text-gray-700 mb-4">Your Active Jobs</h3><div id="provider-job-list" class="space-y-4 pb-4"><p class="text-center text-gray-400 mt-10">No jobs posted yet.</p></div></div><div class="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-100 flex justify-around p-4"><button class="text-purple-600 flex flex-col items-center"><i class="fas fa-home text-xl mb-1"></i><span class="text-xs">Home</span></button><button onclick="renderProviderWallet()" class="text-gray-400 flex flex-col items-center"><i class="fas fa-wallet text-xl mb-1"></i><span class="text-xs">Wallet</span></button><button onclick="handleLogout()" class="text-gray-400 flex flex-col items-center"><i class="fas fa-sign-out-alt text-xl mb-1"></i><span class="text-xs">Logout</span></button></div></div>`;
             loadProviderJobs();
-        }
-
-        window.loadSeekerJobs = () => {
-            const q = query(collection(db, "jobs"), where("status", "==", "open"));
-            onSnapshot(q, (snap) => {
-                const feed = document.getElementById('seeker-feed');
-                if(!feed) return;
-                feed.innerHTML = snap.empty ? "<p class='text-center text-gray-400'>No jobs.</p>" : "";
-                snap.forEach(d => {
-                    const job = d.data();
-                    let imgHTML = job.jobImage ? `<img src="${job.jobImage}" class="w-full h-40 object-cover rounded-xl mb-3 border border-gray-100">` : '';
-
-                    let payBadge = job.paymentMethod === 'coin' 
-                        ? `<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold"><i class="fas fa-coins"></i> Elder Coin</span>`
-                        : `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold"><i class="fas fa-money-bill-wave"></i> Cash</span>`;
-
-                    let locEnc = encodeURIComponent(job.location || '');
-                    let rideBtns = job.location ? `
-                        <div class="flex gap-2 mt-3 mb-2">
-                            <a href="https://m.uber.com/ul/?action=setPickup&dropoff[formatted_address]=${locEnc}" target="_blank" class="flex-1 bg-black text-white py-2 rounded-lg text-center text-sm font-bold shadow-md"><i class="fab fa-uber"></i> Uber</a>
-                            <a href="https://www.google.com/maps/search/?api=1&query=${locEnc}" target="_blank" class="flex-1 bg-red-600 text-white py-2 rounded-lg text-center text-sm font-bold shadow-md"><i class="fas fa-map-marker-alt"></i> Map / PickMe</a>
-                        </div>
-                    ` : '';
-
-                    feed.innerHTML += `
-                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-4 transition hover:shadow-md">
-                            ${imgHTML}
-                            <div class="flex justify-between items-start">
-                                <h4 class="font-bold text-lg text-gray-800 mb-1">${job.description}</h4>
-                                ${payBadge}
-                            </div>
-                            <div class="text-sm text-gray-500 mb-2">
-                                <i class="fas fa-map-marker-alt mr-1"></i> ${job.location || 'No address'}<br>
-                                <i class="fas fa-phone mr-1"></i> ${job.contactPhone || 'No phone'}
-                            </div>
-                            ${rideBtns}
-                            <div class="flex gap-4 mt-2 mb-4 text-sm text-gray-500">
-                                <span><i class="far fa-clock"></i> ${job.duration} mins</span>
-                                <span class="font-bold text-green-600">${job.price} ${job.paymentMethod == 'coin'?'EC':'LKR'}</span>
-                            </div>
-                            <button onclick="acceptJob('${d.id}')" class="w-full py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-teal-100">Accept</button>
-                        </div>`;
-                });
-            });
-        }
-
-        window.submitJob = async () => {
-            const desc = document.getElementById('job-desc').value;
-            const time = document.getElementById('job-time').value;
-            const price = parseFloat(document.getElementById('job-price').value);
-            const method = document.querySelector('input[name="pay-method"]:checked').value;
-            const address = document.getElementById('job-address').value;
-            const phone = document.getElementById('job-phone').value;
-
-            if(method === 'coin' && (userDoc.coins || 0) < price) {
-                showToast("Insufficient Coins!", "error");
-                return;
-            }
-
-            const fileInput = document.getElementById('job-image-file');
-            let jobImageUrl = null;
-            if(fileInput.files.length > 0) {
-                try {
-                    jobImageUrl = await compressImage(fileInput.files[0]);
-                } catch(e) { console.error("Img Error", e); }
-            }
-
-            await addDoc(collection(db, "jobs"), { 
-                providerId: currentUser.uid, 
-                providerName: userDoc.name, 
-                description: desc, 
-                duration: time, 
-                price: price, 
-                paymentMethod: method, 
-                status: 'open', 
-                createdAt: new Date(),
-                jobImage: jobImageUrl,
-                location: address,
-                contactPhone: phone
-            });
-            showToast("Job Posted!"); renderProviderHome();
         }
 
         window.renderPostJob = () => {
@@ -538,18 +501,20 @@
                     <button onclick="renderProviderHome()" class="mb-6 text-gray-500"><i class="fas fa-arrow-left"></i> Cancel</button>
                     <h2 class="text-2xl font-bold mb-6 text-purple-800">Create New Job</h2>
                     <div class="space-y-4">
-                        <textarea id="job-desc" class="nice-input" rows="3" placeholder="Description"></textarea>
+                        <input id="job-title" class="nice-input" placeholder="Job Title (e.g. Garden Cleaning)">
+                        <textarea id="job-desc" class="nice-input" rows="3" placeholder="Job Description"></textarea>
+                        <textarea id="job-reqs" class="nice-input" rows="3" placeholder="Requirements (One per line)"></textarea>
                         <input id="job-address" class="nice-input" placeholder="Job Location/Address">
                         <input id="job-phone" class="nice-input" placeholder="Contact Number" type="tel">
                         <div class="file-upload-wrapper">
-                            <input type="file" id="job-image-file" onchange="previewImage(this,'job-preview-post')" accept="image/*">
-                            <img id="job-preview-post" class="preview-img">
-                            <div class="text-center text-gray-400"><i class="fas fa-camera text-3xl mb-2"></i><br>Add Photo (Optional)</div>
+                            <input type="file" id="job-image-files" onchange="updateFileCount(this)" accept="image/*" multiple>
+                            <div class="text-center text-gray-400 upload-text"><i class="fas fa-camera text-3xl mb-2"></i><br>Add Photos (Max 3)</div>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
-                            <input type="number" id="job-time" class="nice-input" placeholder="Duration (Mins)">
-                            <input type="number" id="job-price" class="nice-input" placeholder="Price">
+                            <input type="number" id="job-hours" class="nice-input" placeholder="Hours">
+                            <input type="number" id="job-minutes" class="nice-input" placeholder="Minutes">
                         </div>
+                        <input type="number" id="job-price" class="nice-input" placeholder="Price">
                         <div class="flex gap-4">
                             <label class="flex-1 p-4 border rounded-xl cursor-pointer has-[:checked]:bg-purple-50"><input type="radio" name="pay-method" value="coin" class="hidden" checked><div class="text-center font-bold text-yellow-600">Elder Coin</div></label>
                             <label class="flex-1 p-4 border rounded-xl cursor-pointer has-[:checked]:bg-green-50"><input type="radio" name="pay-method" value="cash" class="hidden"><div class="text-center font-bold text-green-600">Cash</div></label>
@@ -561,30 +526,17 @@
 
         window.renderProviderWallet = () => {
             document.getElementById('main-content').innerHTML = `
-                <div class="p-6 h-screen bg-white fade-in">
-                    <button onclick="renderProviderHome()" class="mb-4 text-gray-500">Back</button>
-                    <h2 class="text-2xl font-bold mb-6">Coin Wallet</h2>
-                    <div class="bg-gradient-to-r from-yellow-400 to-orange-500 p-8 rounded-3xl text-white shadow-lg mb-8"><h1 class="text-5xl font-bold mt-2">${userDoc.coins || 0} <span class="text-xl">EC</span></h1></div>
-                    <button onclick="openTopUpModal()" class="w-full bg-black text-white py-3 rounded-xl font-bold"><i class="fas fa-university mr-2"></i> Bank Transfer</button>
-                </div>`;
+                <div class="p-6 h-screen bg-white fade-in"><button onclick="renderProviderHome()" class="mb-4 text-gray-500">Back</button><h2 class="text-2xl font-bold mb-6">Coin Wallet</h2><div class="bg-gradient-to-r from-yellow-400 to-orange-500 p-8 rounded-3xl text-white shadow-lg mb-8"><h1 class="text-5xl font-bold mt-2">${userDoc.coins || 0} <span class="text-xl">EC</span></h1></div><button onclick="openTopUpModal()" class="w-full bg-black text-white py-3 rounded-xl font-bold"><i class="fas fa-university mr-2"></i> Bank Transfer</button></div>`;
         }
 
         window.renderSeekerWallet = () => {
              document.getElementById('main-content').innerHTML = `
-                <div class="p-6 h-screen bg-white fade-in">
-                    <button onclick="renderSeekerHome()" class="mb-4 text-gray-500">Back</button>
-                    <h2 class="text-2xl font-bold mb-6">My Earnings</h2>
-                    <div class="bg-gradient-to-r from-teal-500 to-green-500 p-8 rounded-3xl text-white shadow-lg mb-8"><h1 class="text-5xl font-bold mt-2">${userDoc.coins || 0} <span class="text-xl">EC</span></h1></div>
-                    <button onclick="openWithdrawModal()" class="btn-primary">Withdraw to Bank</button>
-                </div>`;
+                <div class="p-6 h-screen bg-white fade-in"><button onclick="renderSeekerHome()" class="mb-4 text-gray-500">Back</button><h2 class="text-2xl font-bold mb-6">My Earnings</h2><div class="bg-gradient-to-r from-teal-500 to-green-500 p-8 rounded-3xl text-white shadow-lg mb-8"><h1 class="text-5xl font-bold mt-2">${userDoc.coins || 0} <span class="text-xl">EC</span></h1></div><button onclick="openWithdrawModal()" class="btn-primary">Withdraw to Bank</button></div>`;
         }
 
         window.renderAdmin = () => {
             document.getElementById('main-content').innerHTML = `
-                <div class="p-6 h-screen bg-gray-100 overflow-y-auto">
-                    <div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-red-600">Admin</h2><button onclick="handleLogout()" class="text-sm bg-gray-300 px-3 py-1 rounded">Logout</button></div>
-                    <div id="admin-list" class="space-y-4"><p class="text-center text-gray-500">Loading...</p></div>
-                </div>`;
+                <div class="p-6 h-screen bg-gray-100 overflow-y-auto"><div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-red-600">Admin</h2><button onclick="handleLogout()" class="text-sm bg-gray-300 px-3 py-1 rounded">Logout</button></div><div id="admin-list" class="space-y-4"><p class="text-center text-gray-500">Loading...</p></div></div>`;
             loadAdminRequests();
         }
 
@@ -645,6 +597,89 @@
             }
         }
 
+        window.loadSeekerJobs = () => {
+            if(jobListener) jobListener();
+            const q = query(collection(db, "jobs"), where("status", "==", "open"));
+            jobListener = onSnapshot(q, (snap) => {
+                const feed = document.getElementById('seeker-feed');
+                if(!feed) return;
+                feed.innerHTML = snap.empty ? "<p class='text-center text-gray-400'>No jobs.</p>" : "";
+                window.loadedJobs = {}; 
+                snap.forEach(d => {
+                    const job = d.data();
+                    job.id = d.id; 
+                    window.loadedJobs[d.id] = job;
+                    let imgHTML = '';
+                    if (job.jobImages && job.jobImages.length > 0) {
+                        imgHTML = `<img src="${job.jobImages[0]}" class="w-full h-40 object-cover rounded-xl mb-3 border border-gray-100">`;
+                    } else if (job.jobImage) {
+                        imgHTML = `<img src="${job.jobImage}" class="w-full h-40 object-cover rounded-xl mb-3 border border-gray-100">`;
+                    }
+                    let payBadge = job.paymentMethod === 'coin' 
+                        ? `<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold"><i class="fas fa-coins"></i> Elder Coin</span>`
+                        : `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold"><i class="fas fa-money-bill-wave"></i> Cash</span>`;
+                    feed.innerHTML += `
+                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-4 transition hover:shadow-md cursor-pointer" onclick="renderJobDetails(window.loadedJobs['${d.id}'])">
+                            ${imgHTML}
+                            <div class="flex justify-between items-start"><h4 class="font-bold text-lg text-gray-800 mb-1">${job.title || job.description.substring(0,20)+'...'}</h4>${payBadge}</div>
+                            <div class="text-sm text-gray-500 mb-2">
+                                <i class="fas fa-map-marker-alt mr-1"></i> ${job.location || 'No address'}<br>
+                                <i class="fas fa-phone mr-1"></i> ${job.contactPhone || 'No phone'}
+                            </div>
+                            <div class="flex gap-4 mt-2 mb-4 text-sm text-gray-500"><span><i class="far fa-clock"></i> ${job.duration} mins</span><span class="font-bold text-green-600">${job.price} ${job.paymentMethod == 'coin'?'EC':'LKR'}</span></div>
+                            <button class="w-full py-2 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">View Details</button>
+                        </div>`;
+                });
+            });
+        }
+
+        window.submitJob = async () => {
+            const title = document.getElementById('job-title').value;
+            const desc = document.getElementById('job-desc').value;
+            const reqs = document.getElementById('job-reqs').value;
+            const hrs = parseInt(document.getElementById('job-hours').value) || 0;
+            const mins = parseInt(document.getElementById('job-minutes').value) || 0;
+            const totalDuration = (hrs * 60) + mins;
+            const price = parseFloat(document.getElementById('job-price').value);
+            const method = document.querySelector('input[name="pay-method"]:checked').value;
+            const address = document.getElementById('job-address').value;
+            const phone = document.getElementById('job-phone').value;
+
+            if(!title || !desc || !price) { showToast("Please fill all fields", "error"); return; }
+            if(totalDuration <= 0) { showToast("Invalid Time Duration", "error"); return; }
+            if(method === 'coin' && (userDoc.coins || 0) < price) { showToast("Insufficient Coins!", "error"); return; }
+
+            const fileInput = document.getElementById('job-image-files');
+            let jobImages = [];
+            if(fileInput.files.length > 0) {
+                if(fileInput.files.length > 3) { showToast("Max 3 photos allowed!", "error"); return; }
+                showToast("Uploading images...", "success");
+                try {
+                    for (let i = 0; i < fileInput.files.length; i++) {
+                        const imgBase64 = await compressImage(fileInput.files[i]);
+                        jobImages.push(imgBase64);
+                    }
+                } catch(e) { console.error("Img Error", e); }
+            }
+
+            await addDoc(collection(db, "jobs"), { 
+                providerId: currentUser.uid, 
+                providerName: userDoc.name, 
+                title: title,
+                description: desc, 
+                requirements: reqs, 
+                duration: totalDuration, 
+                price: price, 
+                paymentMethod: method, 
+                status: 'open', 
+                createdAt: new Date(),
+                jobImages: jobImages,
+                location: address,
+                contactPhone: phone
+            });
+            showToast("Job Posted!"); renderProviderHome();
+        }
+
         window.loadProviderJobs = () => {
             const q = query(collection(db, "jobs"), where("providerId", "==", currentUser.uid));
             onSnapshot(q, (snap) => {
@@ -655,7 +690,7 @@
                     const job = d.data();
                     let actions = job.status === 'active' ? `<button onclick="openJobFinishModal('${d.id}', ${job.price}, '${job.paymentMethod}', '${job.workerId}')" class="mt-3 w-full bg-green-500 text-white py-2 rounded-lg font-bold">Mark Complete</button>` : (job.status === 'completed' ? `<div class="mt-2 text-green-600 font-bold text-xs">Completed</div>` : '');
                     let clr = job.status==='open'?'green':(job.status==='active'?'blue':'gray');
-                    list.innerHTML += `<div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-${clr}-500"><h4 class="font-bold">${job.description}</h4><p class="text-xs text-gray-400 mt-1 uppercase font-bold text-${clr}-600">${job.status}</p>${actions}</div>`;
+                    list.innerHTML += `<div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-${clr}-500"><h4 class="font-bold">${job.title || job.description}</h4><p class="text-xs text-gray-400 mt-1 uppercase font-bold text-${clr}-600">${job.status}</p>${actions}</div>`;
                 });
             });
         }
@@ -664,7 +699,6 @@
             const fileInput = document.getElementById('job-receipt-file');
             let receiptUrl = null;
             if(fileInput.files.length > 0) receiptUrl = await compressImage(fileInput.files[0]);
-            
             if(method === 'coin') {
                 if(userDoc.coins < price) { showToast("Not enough Coins!", "error"); return; }
                 await updateDoc(doc(db, "users", currentUser.uid), { coins: increment(-price) });
@@ -674,20 +708,9 @@
             closeModal(); showToast("Payment Successful!");
         }
 
-        // --- UPDATED: TOP UP MODAL WITH ADMIN BANK DETAILS ---
         window.openTopUpModal = () => { 
             document.getElementById('modal-content').innerHTML = `
-                <h3 class="font-bold mb-2">Top Up</h3>
-                <div class="bg-blue-50 p-3 rounded-lg mb-4 text-sm border border-blue-200">
-                    <p class="font-bold text-blue-800">Bank Deposit Details:</p>
-                    <p>Bank: BOC (Bank of Ceylon)</p>
-                    <p>A/C: 123456789</p>
-                    <p>Branch: Colombo</p>
-                    <p>Name: ElderWorks Admin</p>
-                </div>
-                <input id="topup-amount" class="nice-input" placeholder="Amount">
-                <div class="file-upload-wrapper"><input type="file" id="topup-file" onchange="previewImage(this,'tp-prev')"><img id="tp-prev" class="preview-img"><div class="text-center">Upload Slip</div></div>
-                <div class="flex gap-2 mt-2"><button onclick="closeModal()" class="btn-secondary">Cancel</button><button onclick="confirmTopUp()" class="btn-primary">Send</button></div>`; 
+                <h3 class="font-bold mb-2">Top Up</h3><div class="bg-blue-50 p-3 rounded-lg mb-4 text-sm border border-blue-200"><p class="font-bold text-blue-800">Bank Deposit Details:</p><p>Bank: BOC (Bank of Ceylon)</p><p>A/C: 123456789</p><p>Branch: Colombo</p><p>Name: ElderWorks Admin</p></div><input id="topup-amount" class="nice-input" placeholder="Amount"><div class="file-upload-wrapper"><input type="file" id="topup-file" onchange="previewImage(this,'tp-prev')"><img id="tp-prev" class="preview-img"><div class="text-center">Upload Slip</div></div><div class="flex gap-2 mt-2"><button onclick="closeModal()" class="btn-secondary">Cancel</button><button onclick="confirmTopUp()" class="btn-primary">Send</button></div>`; 
             document.getElementById('app-modal').classList.add('active'); 
         }
 
@@ -704,13 +727,11 @@
             const amt = document.getElementById('modal-with-amount').value;
             const bank = document.getElementById('modal-with-bank').value;
             if(amt && bank) {
-                // Saving bank details here
                 await addDoc(collection(db, "coin_requests"), { userId: currentUser.uid, userName: userDoc.name, type: 'withdraw', amount: parseInt(amt), bank: bank, status: 'pending' });
                 closeModal(); showToast("Requested");
             }
         }
 
-        // --- UPDATED: ADMIN VIEW WITH USER BANK DETAILS ---
         window.loadAdminRequests = () => {
              const q = query(collection(db, "coin_requests"), where("status", "==", "pending"));
              onSnapshot(q, (snap) => {
@@ -720,10 +741,7 @@
                 snap.forEach(d => {
                     const r = d.data();
                     let img = r.receiptImage ? `<img src="${r.receiptImage}" class="w-full h-32 object-contain bg-gray-50 mt-2">` : '';
-                    
-                    // Show Bank Details if it's a Withdraw Request
                     let bankDetails = r.type === 'withdraw' ? `<p class="text-xs text-gray-600 bg-gray-100 p-2 rounded mt-1"><strong>Bank:</strong> ${r.bank}</p>` : '';
-
                     list.innerHTML += `<div class="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-400"><div class="flex justify-between font-bold"><span>${r.type}</span><span>${r.amount} EC</span></div><p class="text-sm">${r.userName}</p>${bankDetails}${img}<div class="flex gap-2 mt-2"><button onclick="adminDecide('${d.id}', '${r.userId}', ${r.amount}, '${r.type}', true)" class="flex-1 bg-green-500 text-white py-1 rounded">Approve</button><button onclick="adminDecide('${d.id}', null, 0, null, false)" class="flex-1 bg-red-500 text-white py-1 rounded">Reject</button></div></div>`;
                 });
              });
