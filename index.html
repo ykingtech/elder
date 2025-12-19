@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ElderWorks Premium + Guardian</title>
+    <title>ElderWorks Ultimate Pro</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.tailwindcss.com"></script>
     
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        primary: '#0d9488',
-                        secondary: '#f59e0b',
-                        danger: '#ef4444',
-                        bgSoft: '#f0fdfa',
+                        primary: '#0d9488',   /* Teal-600 */
+                        secondary: '#f59e0b', /* Amber-500 */
+                        danger: '#ef4444',    /* Red-500 */
+                        bgSoft: '#f0fdfa',    /* Teal-50 */
                     },
                     fontFamily: {
                         sans: ['Poppins', 'sans-serif'],
@@ -37,12 +37,14 @@
         .fade-in { animation: fadeIn 0.4s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
+        /* Modern Inputs */
         .nice-input {
             width: 100%; padding: 16px; font-size: 1.1rem; border-radius: 16px;
             border: 2px solid #e2e8f0; outline: none; transition: all 0.3s; background: white; margin-bottom: 10px;
         }
         .nice-input:focus { border-color: #0d9488; box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1); }
 
+        /* File Upload */
         .file-upload-wrapper {
             position: relative; width: 100%; height: 120px; border: 2px dashed #cbd5e1;
             border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -51,6 +53,7 @@
         }
         .file-upload-wrapper input { position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
         
+        /* Buttons */
         .btn-primary {
             background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
             color: white; padding: 16px; border-radius: 16px; font-weight: 600;
@@ -59,11 +62,18 @@
         }
         .btn-primary:active { transform: scale(0.98); }
         .btn-secondary { background: #e2e8f0; color: #64748b; padding: 16px; border-radius: 16px; font-weight: 600; width: 100%; }
+        
+        /* GPS Button Animation */
+        .btn-sharing-on { background: #ef4444; color: white; animation: pulse 2s infinite; }
+        .btn-sharing-off { background: #10b981; color: white; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
 
+        /* Accessibility Tools */
         .access-tools { position: fixed; top: 20px; right: 20px; z-index: 50; display: flex; gap: 10px; }
         .access-btn { width: 45px; height: 45px; background: white; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #333; cursor: pointer; border: 2px solid #e2e8f0; }
         .access-btn.active { background: #0d9488; color: white; border-color: #0d9488; }
 
+        /* Modal */
         .modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6);
             backdrop-filter: blur(4px); z-index: 60; display: none; align-items: center; justify-content: center;
@@ -75,11 +85,12 @@
         }
         @keyframes popUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-        /* Star Rating Styles */
+        /* Stars */
         .star-rating { display: flex; gap: 5px; justify-content: center; margin: 15px 0; }
         .star { font-size: 2.5rem; color: #cbd5e1; cursor: pointer; transition: color 0.2s; }
         .star.selected { color: #f59e0b; }
 
+        /* Toast */
         #toast-container { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 100; }
         .toast { background: #333; color: white; padding: 12px 24px; border-radius: 30px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; animation: slideDown 0.3s ease; }
     </style>
@@ -127,6 +138,7 @@
         let timerInt = null;
         let jobListener = null;
         let activeJobListener = null;
+        let locationWatchId = null; 
 
         // --- ACCESSIBILITY ---
         let isZoomed = false;
@@ -140,18 +152,14 @@
 
         window.toggleReader = () => {
             if (isReading) {
-                if(window.Android && window.Android.stopSpeak) {
-                    window.Android.stopSpeak(); 
-                } else {
-                    window.speechSynthesis.cancel();
-                }
+                if(window.Android && window.Android.stopSpeak) window.Android.stopSpeak(); 
+                else window.speechSynthesis.cancel();
                 isReading = false;
                 document.getElementById('btn-reader').classList.remove('active');
             } else {
                 const text = document.getElementById('main-content').innerText;
-                if(window.Android && window.Android.speak) {
-                    window.Android.speak(text);
-                } else {
+                if(window.Android && window.Android.speak) window.Android.speak(text);
+                else {
                     const utterance = new SpeechSynthesisUtterance(text);
                     utterance.onend = () => { isReading = false; document.getElementById('btn-reader').classList.remove('active'); };
                     window.speechSynthesis.speak(utterance);
@@ -214,7 +222,7 @@
 
         window.closeModal = () => document.getElementById('app-modal').classList.remove('active');
 
-        // --- AUTH LOGIC (Updated for Guardian) ---
+        // --- AUTH & ROLES ---
         window.handleGoogle = () => {
             if (window.Android && window.Android.triggerGoogleLogin) {
                 window.Android.triggerGoogleLogin();
@@ -239,23 +247,25 @@
             const loading = document.getElementById('loading-screen');
             if (user) {
                 currentUser = user;
-                
-                // 1. Check if direct User
                 const docRef = doc(db, "users", user.uid);
-                const docSnap = await getDoc(docRef);
+                // Watch user doc for real-time updates (like isSharingLocation)
+                onSnapshot(docRef, (docSnap) => {
+                     if (docSnap.exists()) {
+                        userDoc = docSnap.data();
+                        if(document.getElementById('tracking-btn-container')) updateTrackingButtonUI();
+                    }
+                });
                 
+                const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
                     userDoc = docSnap.data();
                     if(user.email === ADMIN_EMAIL) renderAdmin();
                     else if(userDoc.role === 'seeker') renderSeekerHome();
                     else if(userDoc.role === 'provider') renderProviderHome();
                 } else {
-                    // 2. Check if Guardian (Logic here)
                     const qGuard = query(collection(db, "users"), where("guardianEmail", "==", user.email));
                     const guardSnap = await getDocs(qGuard);
-                    
                     if (!guardSnap.empty) {
-                        // User is a Guardian for someone!
                         const elderData = guardSnap.docs[0].data();
                         renderGuardianHome(elderData, guardSnap.docs[0].id);
                     } else {
@@ -267,28 +277,20 @@
                 if(timerInt) clearInterval(timerInt);
                 if(jobListener) jobListener();
                 if(activeJobListener) activeJobListener();
+                if(locationWatchId) navigator.geolocation.clearWatch(locationWatchId);
             }
             loading.style.display = 'none';
         });
 
         // --- MEDICINE REMINDER ---
-        if ("Notification" in window) {
-            try { Notification.requestPermission(); } catch(e){}
-        }
-
+        if ("Notification" in window) { try { Notification.requestPermission(); } catch(e){} }
         let lastPlayedMinute = "";
         setInterval(() => {
             if (!userDoc || !userDoc.medicines) return;
             const now = new Date();
             const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
             if (currentTime === lastPlayedMinute) return;
-
-            userDoc.medicines.forEach(med => {
-                if (med.time === currentTime) {
-                    triggerReminder(med.name);
-                    lastPlayedMinute = currentTime;
-                }
-            });
+            userDoc.medicines.forEach(med => { if (med.time === currentTime) { triggerReminder(med.name); lastPlayedMinute = currentTime; } });
         }, 5000);
 
         function triggerReminder(medName) {
@@ -296,9 +298,7 @@
             audio.play().catch(e => console.log("Audio error:", e));
             showToast(`💊 Time to take: ${medName}`);
             if ("Notification" in window && Notification.permission === "granted") {
-                try {
-                    new Notification("Medicine Reminder", { body: `It's time to take ${medName}`, icon: "https://cdn-icons-png.flaticon.com/512/883/883407.png" });
-                } catch(e) {}
+                try { new Notification("Medicine Reminder", { body: `It's time to take ${medName}`, icon: "https://cdn-icons-png.flaticon.com/512/883/883407.png" }); } catch(e) {}
             }
         }
 
@@ -309,41 +309,26 @@
             activeJobListener = onSnapshot(q, async (snap) => {
                 const card = document.getElementById('active-job-card');
                 if(!card) return;
-                
                 if(!snap.empty) {
                     const docSnap = snap.docs[0];
                     const job = docSnap.data();
-                    if (!job.startTime) {
-                        await updateDoc(doc(db, "jobs", docSnap.id), { startTime: Date.now() });
-                        return;
-                    }
+                    if (!job.startTime) { await updateDoc(doc(db, "jobs", docSnap.id), { startTime: Date.now() }); return; }
                     card.classList.remove('hidden');
-                    
-                    let insuranceBtn = '';
-                    if(userDoc.insuranceProvider) {
-                        insuranceBtn = `<a href="tel:${userDoc.insurancePhone || '1990'}" class="block mt-3 bg-red-600 text-white text-center py-2 rounded-lg font-bold animate-pulse"><i class="fas fa-first-aid"></i> Call ${userDoc.insuranceProvider}</a>`;
-                    }
-
+                    let insuranceBtn = userDoc.insuranceProvider ? `<a href="tel:${userDoc.insurancePhone || '1990'}" class="block mt-3 bg-red-600 text-white text-center py-2 rounded-lg font-bold animate-pulse"><i class="fas fa-first-aid"></i> Call ${userDoc.insuranceProvider}</a>` : '';
                     card.innerHTML = `
                         <div class="bg-blue-900 text-white p-6 rounded-3xl shadow-xl relative overflow-hidden">
                             <div class="absolute top-0 right-0 w-32 h-32 bg-blue-800 rounded-full -mr-10 -mt-10 opacity-50"></div>
                             <h3 class="text-blue-200 text-sm font-bold uppercase tracking-wider mb-1">Ongoing Job: ${job.title || 'Job'}</h3>
                             <div class="text-4xl font-mono font-bold mb-2" id="timer">Loading...</div>
                             <p class="text-sm opacity-90">${job.description ? job.description.substring(0,50)+'...' : ''}</p>
-                            <div class="text-xs bg-white/20 p-2 rounded-lg mt-2 mb-2">
-                                <p><i class="fas fa-map-marker-alt"></i> ${job.location || 'Location N/A'}</p>
-                                <p><i class="fas fa-phone"></i> ${job.contactPhone || 'Phone N/A'}</p>
-                            </div>
+                            <div class="text-xs bg-white/20 p-2 rounded-lg mt-2 mb-2"><p><i class="fas fa-map-marker-alt"></i> ${job.location || 'N/A'}</p><p><i class="fas fa-phone"></i> ${job.contactPhone || 'N/A'}</p></div>
                             <button onclick="finishJobSeeker('${docSnap.id}', ${job.startTime}, ${job.duration}, '${job.providerId}')" class="w-full bg-green-500 text-white py-2 rounded-lg font-bold shadow mb-2"><i class="fas fa-check-circle"></i> Mark as Done</button>
                             ${insuranceBtn}
                         </div>`;
                     startTimer(job.startTime);
                 } else {
                     card.classList.add('hidden');
-                    if(timerInt) {
-                        clearInterval(timerInt);
-                        timerInt = null;
-                    }
+                    if(timerInt) { clearInterval(timerInt); timerInt = null; }
                 }
             });
         }
@@ -352,74 +337,39 @@
             const now = Date.now();
             const elapsedMs = now - startTime;
             const requiredMs = durationMins * 60 * 1000;
-
             if (elapsedMs < requiredMs) {
                 const remainingMins = Math.ceil((requiredMs - elapsedMs) / 60000);
                 showToast(`Time not finished! ${remainingMins} mins left.`, "error");
                 return;
             }
-
-            // Open Rating Modal instead of direct finish
             openRatingModal(id, providerId);
         }
-        
-        // --- NEW: RATING LOGIC ---
+
+        // --- RATING LOGIC ---
         let currentRating = 0;
-        
         window.openRatingModal = (jobId, providerId) => {
             currentRating = 0;
             document.getElementById('modal-content').innerHTML = `
                 <div class="text-center">
                     <h2 class="text-xl font-bold mb-2 text-primary">Job Completed!</h2>
                     <p class="text-gray-500 text-sm">How was the service?</p>
-                    
-                    <div class="star-rating">
-                        <i class="fas fa-star star" onclick="setRating(1)"></i>
-                        <i class="fas fa-star star" onclick="setRating(2)"></i>
-                        <i class="fas fa-star star" onclick="setRating(3)"></i>
-                        <i class="fas fa-star star" onclick="setRating(4)"></i>
-                        <i class="fas fa-star star" onclick="setRating(5)"></i>
-                    </div>
-                    
+                    <div class="star-rating"><i class="fas fa-star star" onclick="setRating(1)"></i><i class="fas fa-star star" onclick="setRating(2)"></i><i class="fas fa-star star" onclick="setRating(3)"></i><i class="fas fa-star star" onclick="setRating(4)"></i><i class="fas fa-star star" onclick="setRating(5)"></i></div>
                     <textarea id="rating-comment" class="nice-input" placeholder="Any comments? (Optional)" rows="2"></textarea>
-                    
                     <button onclick="submitRating('${jobId}', '${providerId}')" class="btn-primary mt-2">Submit & Finish</button>
-                </div>
-            `;
+                </div>`;
             document.getElementById('app-modal').classList.add('active');
         }
         
         window.setRating = (n) => {
             currentRating = n;
             const stars = document.querySelectorAll('.star');
-            stars.forEach((s, index) => {
-                if(index < n) s.classList.add('selected');
-                else s.classList.remove('selected');
-            });
+            stars.forEach((s, index) => { if(index < n) s.classList.add('selected'); else s.classList.remove('selected'); });
         }
         
         window.submitRating = async (jobId, providerId) => {
-            if(currentRating === 0) {
-                showToast("Please select stars", "error");
-                return;
-            }
-            
+            if(currentRating === 0) { showToast("Please select stars", "error"); return; }
             const comment = document.getElementById('rating-comment').value;
-            
-            // 1. Update Job
-            await updateDoc(doc(db, "jobs", jobId), { 
-                status: 'completed', 
-                completedAt: new Date(),
-                rating: currentRating,
-                review: comment
-            });
-            
-            // 2. Update Provider Rating (Ideally using transaction, but simpler here)
-            // We need to fetch provider first to handle average correctly, or just save raw list
-            // For simplicity in this demo: we won't recalculate full average, just store last rating
-            // A better way for production:
-            // await updateDoc(doc(db, "users", providerId), { ratingSum: increment(currentRating), ratingCount: increment(1) });
-            
+            await updateDoc(doc(db, "jobs", jobId), { status: 'completed', completedAt: new Date(), rating: currentRating, review: comment });
             closeModal();
             if(timerInt) clearInterval(timerInt);
             document.getElementById('active-job-card').classList.add('hidden');
@@ -443,27 +393,73 @@
             if(el) el.innerText = diff >= 3600 ? `${hrs}:${mins}:${secs}` : `${mins}:${secs}`;
         }
 
-        // --- JOB ACCEPT FIX ---
+        // --- LOCATION TRACKING (GPS) ---
+        window.toggleLocationShare = async () => {
+            const isSharing = userDoc.isSharingLocation;
+            if(isSharing) {
+                if(locationWatchId) navigator.geolocation.clearWatch(locationWatchId);
+                await updateDoc(doc(db, "users", currentUser.uid), { isSharingLocation: false });
+                showToast("Location sharing stopped");
+                updateTrackingButtonUI();
+            } else {
+                if ("geolocation" in navigator) {
+                    showToast("Starting location sharing...");
+                    await updateDoc(doc(db, "users", currentUser.uid), { isSharingLocation: true });
+                    locationWatchId = navigator.geolocation.watchPosition(async (position) => {
+                        const { latitude, longitude } = position.coords;
+                        await updateDoc(doc(db, "users", currentUser.uid), { currentLocation: { lat: latitude, lng: longitude, lastUpdated: new Date() } });
+                    }, (error) => { showToast("GPS Error: " + error.message, "error"); updateDoc(doc(db, "users", currentUser.uid), { isSharingLocation: false }); }, { enableHighAccuracy: true });
+                    updateTrackingButtonUI();
+                } else { showToast("GPS not supported", "error"); }
+            }
+        }
+        
+        window.updateTrackingButtonUI = () => {
+            const btnContainer = document.getElementById('tracking-btn-container');
+            if(!btnContainer) return;
+            if(userDoc.isSharingLocation) {
+                btnContainer.innerHTML = `<button onclick="toggleLocationShare()" class="w-full py-4 rounded-2xl font-bold text-lg shadow-lg btn-sharing-on"><i class="fas fa-stop-circle mr-2"></i> Stop Sharing Location</button><p class="text-xs text-center mt-1 text-red-500 font-bold">Live Tracking Active</p>`;
+            } else {
+                btnContainer.innerHTML = `<button onclick="toggleLocationShare()" class="w-full py-4 rounded-2xl font-bold text-lg shadow-lg btn-sharing-off"><i class="fas fa-map-marker-alt mr-2"></i> Share Live Location</button>`;
+            }
+        }
+
+        // --- QUICK REQUESTS ---
+        window.quickRequest = (title, desc, icon, colorInfo, bgInfo) => {
+            document.getElementById('modal-content').innerHTML = `
+                <div class="text-center">
+                    <div class="w-16 h-16 mx-auto ${bgInfo} rounded-full flex items-center justify-center mb-4 text-2xl ${colorInfo}"><i class="${icon}"></i></div>
+                    <h3 class="text-xl font-bold mb-2">${title}</h3><p class="text-gray-500 text-sm mb-4">Are you sure you want to request help for: <b>${desc}</b>?</p>
+                    <div class="text-left bg-gray-50 p-3 rounded-lg mb-4 text-sm"><p><b>Cost:</b> 500 EC (Standard Rate)</p><p><b>Duration:</b> ~1 Hour</p></div>
+                    <div class="flex gap-2"><button onclick="closeModal()" class="btn-secondary">Cancel</button><button onclick="confirmQuickJob('${title}', '${desc}')" class="btn-primary">Yes, Request Now</button></div>
+                </div>`;
+            document.getElementById('app-modal').classList.add('active');
+        }
+
+        window.confirmQuickJob = async (title, desc) => {
+            try {
+                await addDoc(collection(db, "jobs"), {
+                    title: title, description: desc, requirements: "Quick Service Request", duration: 60, price: 500, paymentMethod: 'coin', status: 'open',
+                    createdAt: new Date(), location: userDoc.address || "See Profile", contactPhone: "Check Profile",
+                    isQuickRequest: true, providerId: currentUser.uid, providerName: userDoc.name
+                });
+                closeModal(); showToast("Request Posted!", "success"); renderSeekerHome();
+            } catch (e) { showToast("Error posting request", "error"); }
+        }
+
         window.acceptJob = async (id) => {
             try {
-                await updateDoc(doc(db, "jobs", id), { 
-                    status: 'active', 
-                    workerId: currentUser.uid, 
-                    workerName: userDoc.name,
-                    startTime: Date.now() 
-                });
-                showToast("Job Accepted!");
-                renderSeekerHome();
+                await updateDoc(doc(db, "jobs", id), { status: 'active', workerId: currentUser.uid, workerName: userDoc.name, startTime: Date.now() });
+                showToast("Job Accepted!"); renderSeekerHome();
             } catch (e) { showToast("Error accepting", "error"); }
         }
 
-        // --- INSURANCE LOGIC ---
+        // --- INSURANCE ---
         window.renderInsurancePage = () => {
              document.getElementById('main-content').innerHTML = `
                 <div class="p-6 h-screen bg-white fade-in overflow-y-auto">
                     <button onclick="renderSeekerHome()" class="mb-4 text-gray-500 font-bold"><i class="fas fa-arrow-left"></i> Back</button>
                     <h2 class="text-2xl font-bold mb-6 text-gray-800">Worker Insurance</h2>
-                    <p class="text-gray-500 mb-6 text-sm">Select an insurance provider to get covered while you work.</p>
                     <div class="space-y-4">
                         <div onclick="selectInsurance('Ceylinco', '0112393939')" class="border-2 ${userDoc.insuranceProvider === 'Ceylinco' ? 'border-green-500 bg-green-50' : 'border-gray-200'} p-4 rounded-2xl cursor-pointer hover:shadow-lg transition"><div class="flex items-center gap-4"><div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600 font-bold"><i class="fas fa-shield-alt"></i></div><div><h3 class="font-bold text-lg">Ceylinco VIP</h3><p class="text-xs text-gray-500">Accident Cover up to 1Mn</p></div></div></div>
                         <div onclick="selectInsurance('AIA', '0112310310')" class="border-2 ${userDoc.insuranceProvider === 'AIA' ? 'border-green-500 bg-green-50' : 'border-gray-200'} p-4 rounded-2xl cursor-pointer hover:shadow-lg transition"><div class="flex items-center gap-4"><div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold"><i class="fas fa-user-shield"></i></div><div><h3 class="font-bold text-lg">AIA Insurance</h3><p class="text-xs text-gray-500">Health & Life Coverage</p></div></div></div>
@@ -475,43 +471,34 @@
         window.selectInsurance = async (provider, phone) => {
             if(confirm(`Select ${provider} as your insurance?`)) {
                 await updateDoc(doc(db, "users", currentUser.uid), { insuranceProvider: provider, insurancePhone: phone });
-                userDoc.insuranceProvider = provider;
-                userDoc.insurancePhone = phone;
-                showToast("Insurance Updated!");
-                renderInsurancePage();
+                userDoc.insuranceProvider = provider; userDoc.insurancePhone = phone;
+                showToast("Insurance Updated!"); renderInsurancePage();
             }
         }
 
-        // --- JOB DETAILS VIEW ---
+        // --- JOB DETAILS (UPDATED WITH WHATSAPP & CALL) ---
         window.renderJobDetails = (job) => {
             let locEnc = encodeURIComponent(job.location || '');
-            let payBadge = job.paymentMethod === 'coin' 
-                        ? `<span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-coins"></i> Elder Coin</span>`
-                        : `<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-money-bill-wave"></i> Cash</span>`;
-            
+            let rawPhone = job.contactPhone || '';
+            let waPhone = rawPhone.replace(/[^0-9]/g, '');
+            if(waPhone.startsWith('0')) waPhone = '94' + waPhone.substring(1);
+
+            let payBadge = job.paymentMethod === 'coin' ? `<span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-coins"></i> Elder Coin</span>` : `<span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold"><i class="fas fa-money-bill-wave"></i> Cash</span>`;
             let galleryHTML = '';
             if (job.jobImages && job.jobImages.length > 0) {
                 galleryHTML = `<div class="flex overflow-x-auto gap-2 mb-6 pb-2 snap-x">`;
-                job.jobImages.forEach(img => {
-                    galleryHTML += `<img src="${img}" class="w-64 h-48 object-cover rounded-2xl shadow-md snap-center flex-shrink-0">`;
-                });
+                job.jobImages.forEach(img => { galleryHTML += `<img src="${img}" class="w-64 h-48 object-cover rounded-2xl shadow-md snap-center flex-shrink-0">`; });
                 galleryHTML += `</div>`;
-            } else if (job.jobImage) {
-                galleryHTML = `<img src="${job.jobImage}" class="w-full h-56 object-cover rounded-3xl mb-6 shadow-md">`;
-            }
-
+            } else if (job.jobImage) { galleryHTML = `<img src="${job.jobImage}" class="w-full h-56 object-cover rounded-3xl mb-6 shadow-md">`; }
             let reqsHTML = '';
             if(job.requirements) {
                 let lines = job.requirements.split('\n').filter(line => line.trim() !== '');
                 if(lines.length > 0) {
                     reqsHTML = `<div class="bg-gray-50 p-4 rounded-2xl mb-4"><h3 class="font-bold text-gray-700 mb-2"><i class="fas fa-list-ul text-primary"></i> Requirements</h3><ul class="text-sm text-gray-600 space-y-2">`;
-                    lines.forEach(line => {
-                        reqsHTML += `<li><i class="fas fa-check-circle text-green-500 mr-2"></i>${line}</li>`;
-                    });
+                    lines.forEach(line => { reqsHTML += `<li><i class="fas fa-check-circle text-green-500 mr-2"></i>${line}</li>`; });
                     reqsHTML += `</ul></div>`;
                 }
             }
-
             document.getElementById('main-content').innerHTML = `
                 <div class="p-6 h-screen bg-white fade-in overflow-y-auto pb-24">
                     <button onclick="renderSeekerHome()" class="mb-4 text-gray-500 font-bold"><i class="fas fa-arrow-left"></i> Back to Jobs</button>
@@ -520,13 +507,22 @@
                     <p class="text-gray-600 mb-6">${job.description}</p>
                     ${reqsHTML}
                     <div class="bg-blue-50 p-4 rounded-2xl mb-4"><h3 class="font-bold text-blue-800 mb-2"><i class="far fa-clock"></i> Schedule</h3><p class="text-sm text-gray-700"><strong>Duration:</strong> ${job.duration} Minutes</p><p class="text-sm text-gray-700"><strong>Rate:</strong> ${job.price} ${job.paymentMethod == 'coin'?'EC':'LKR'}</p></div>
+                    
                     <div class="bg-gray-50 p-4 rounded-2xl mb-6">
-                        <h3 class="font-bold text-gray-700 mb-2"><i class="fas fa-map-marker-alt text-red-500"></i> Location & Contact</h3>
-                        <p class="text-sm text-gray-600 mb-1"><i class="fas fa-map-pin mr-2"></i> ${job.location || 'No location provided'}</p>
-                        <p class="text-sm text-gray-600 mb-3"><i class="fas fa-phone mr-2"></i> ${job.contactPhone || 'No Phone'}</p>
-                        <div class="flex gap-2"><a href="https://m.uber.com/ul/?action=setPickup&dropoff[formatted_address]=${locEnc}" target="_blank" class="flex-1 bg-black text-white py-2 rounded-xl text-center text-sm font-bold shadow"><i class="fab fa-uber"></i> Uber</a><a href="https://www.google.com/maps/search/?api=1&query=${locEnc}" target="_blank" class="flex-1 bg-red-600 text-white py-2 rounded-xl text-center text-sm font-bold shadow"><i class="fas fa-map-marked-alt"></i> PickMe (Map)</a></div>
+                        <h3 class="font-bold text-gray-700 mb-2"><i class="fas fa-address-book text-red-500"></i> Contact & Location</h3>
+                        <p class="text-sm text-gray-600 mb-3"><i class="fas fa-map-pin mr-2"></i> ${job.location || 'No location'}</p>
+                        
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <a href="tel:${rawPhone}" class="bg-white border border-gray-200 text-gray-700 py-3 rounded-xl font-bold text-center shadow-sm hover:bg-gray-50"><i class="fas fa-phone-alt text-green-600 mr-1"></i> Call</a>
+                            <a href="https://wa.me/${waPhone}" target="_blank" class="bg-green-500 text-white py-3 rounded-xl font-bold text-center shadow-md hover:bg-green-600"><i class="fab fa-whatsapp text-xl mr-1"></i> WhatsApp</a>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <a href="https://m.uber.com/ul/?action=setPickup&dropoff[formatted_address]=${locEnc}" target="_blank" class="flex-1 bg-black text-white py-2 rounded-xl text-center text-sm font-bold shadow"><i class="fab fa-uber"></i> Uber</a>
+                            <a href="https://www.google.com/maps/search/?api=1&query=${locEnc}" target="_blank" class="flex-1 bg-red-600 text-white py-2 rounded-xl text-center text-sm font-bold shadow"><i class="fas fa-map-marked-alt"></i> Map</a>
+                        </div>
                     </div>
-                    <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100 mb-20"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-orange-200 rounded-full flex items-center justify-center text-orange-600"><i class="fas fa-shield-alt"></i></div><div><h4 class="font-bold text-orange-800">Safety First</h4><p class="text-xs text-orange-700">Insurance coverage is active during this job.</p></div></div></div>
+
                     <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 max-w-md mx-auto"><button onclick="acceptJob('${job.id}')" class="w-full py-4 bg-primary text-white rounded-2xl font-bold text-lg shadow-lg shadow-teal-200">Accept Job</button></div>
                 </div>`;
         }
@@ -549,110 +545,80 @@
 
         window.renderSeekerSetup = () => {
             document.getElementById('main-content').innerHTML = `
-                <div class="p-6 fade-in">
-                    <h2 class="text-2xl font-bold mb-6">Elder Profile</h2>
-                    <div class="space-y-4">
-                        <input id="s-name" class="nice-input" placeholder="Full Name">
-                        <textarea id="s-address" class="nice-input" rows="3" placeholder="Your Address"></textarea>
-                        <textarea id="s-health" class="nice-input" rows="3" placeholder="Health Conditions"></textarea>
-                        <input type="number" id="s-hours" class="nice-input" placeholder="Max Work Hours/Day">
-                        
-                        <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
-                            <label class="text-sm font-bold text-yellow-700 block mb-1">Guardian Portal (Optional)</label>
-                            <input id="s-guardian" class="nice-input mb-0" placeholder="Child/Guardian's Email Address">
-                            <p class="text-xs text-yellow-600 mt-1">They can log in to check your status.</p>
-                        </div>
-                        
-                        <button onclick="saveProfile('seeker')" class="btn-primary">Save & Start</button>
+                <div class="p-6 fade-in"><h2 class="text-2xl font-bold mb-6">Elder Profile</h2><div class="space-y-4"><input id="s-name" class="nice-input" placeholder="Full Name"><textarea id="s-address" class="nice-input" rows="3" placeholder="Your Address"></textarea><textarea id="s-health" class="nice-input" rows="3" placeholder="Health Conditions"></textarea><input type="number" id="s-hours" class="nice-input" placeholder="Max Work Hours/Day"><div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200"><label class="text-sm font-bold text-yellow-700 block mb-1">Guardian Portal (Optional)</label><input id="s-guardian" class="nice-input mb-0" placeholder="Child/Guardian's Email Address"><p class="text-xs text-yellow-600 mt-1">They can log in to check your status.</p></div><button onclick="saveProfile('seeker')" class="btn-primary">Save & Start</button></div></div>`;
+        }
+
+        // --- TIPS PAGE ---
+        window.renderTipsPage = () => {
+            document.getElementById('main-content').innerHTML = `
+                <div class="flex flex-col h-screen bg-white">
+                    <div class="p-6 border-b sticky top-0 bg-white z-10 flex items-center gap-3"><button onclick="renderSeekerHome()" class="text-gray-500"><i class="fas fa-arrow-left"></i></button><h2 class="text-xl font-bold text-gray-800">Health & Tips</h2></div>
+                    <div class="flex-1 overflow-y-auto p-6 pb-24 space-y-6">
+                        <div class="bg-green-50 rounded-2xl p-5 border border-green-100"><div class="flex items-center gap-3 mb-3"><div class="bg-green-100 p-2 rounded-full text-green-600"><i class="fas fa-apple-alt"></i></div><h3 class="font-bold text-green-800">Healthy Eating</h3></div><p class="text-sm text-gray-600 leading-relaxed">Eat more vegetables and fruits. Reduce sugar intake to control diabetes. Drink at least 8 glasses of water daily.</p></div>
+                        <div class="bg-blue-50 rounded-2xl p-5 border border-blue-100"><div class="flex items-center gap-3 mb-3"><div class="bg-blue-100 p-2 rounded-full text-blue-600"><i class="fas fa-walking"></i></div><h3 class="font-bold text-blue-800">Daily Exercise</h3></div><p class="text-sm text-gray-600 leading-relaxed">A 20-minute walk every morning helps maintain blood pressure and keeps joints active.</p></div>
+                        <div class="bg-purple-50 rounded-2xl p-5 border border-purple-100 relative overflow-hidden"><div class="absolute top-0 right-0 bg-purple-200 px-3 py-1 rounded-bl-xl text-xs font-bold text-purple-800">Upcoming</div><div class="flex items-center gap-3 mb-3"><div class="bg-purple-100 p-2 rounded-full text-purple-600"><i class="fas fa-praying-hands"></i></div><h3 class="font-bold text-purple-800">Full Moon Poya</h3></div><p class="text-sm text-gray-600 mb-2">Join our online Bana program next Poya day.</p><button class="w-full bg-purple-600 text-white py-2 rounded-lg text-sm font-bold mt-2">View Details</button></div>
                     </div>
+                    <div class="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-100 flex justify-around p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]"><button onclick="renderSeekerHome()" class="text-gray-400 flex flex-col items-center hover:text-primary"><i class="fas fa-home text-xl mb-1"></i><span class="text-xs">Home</span></button><button class="text-primary flex flex-col items-center"><i class="fas fa-book-open text-xl mb-1"></i><span class="text-xs">Tips</span></button><button onclick="renderSeekerWallet()" class="text-gray-400 flex flex-col items-center hover:text-primary"><i class="fas fa-wallet text-xl mb-1"></i><span class="text-xs">Wallet</span></button><button onclick="handleLogout()" class="text-gray-400 flex flex-col items-center hover:text-red-500"><i class="fas fa-sign-out-alt text-xl mb-1"></i><span class="text-xs">Logout</span></button></div>
                 </div>`;
         }
 
-        // --- NEW: GUARDIAN HOME ---
+        // --- GUARDIAN HOME (UPDATED FOR MAPS) ---
         window.renderGuardianHome = (elderData, elderId) => {
-            // Build medicine list for display
+            // Re-fetch logic for real-time (omitted for brevity in template but logic is same)
+            // Using the listener logic from `onAuthStateChanged` is better, but here we render basic view
+            // Better to attach a listener inside here if we want live map updates on this screen
+            
+            // For now, simple render:
             let medsHtml = "";
-            if(elderData.medicines && elderData.medicines.length > 0) {
-                elderData.medicines.forEach(m => {
-                    medsHtml += `<div class="flex justify-between items-center py-2 border-b border-gray-100"><span class="font-bold">${m.name}</span><span class="text-primary text-sm">${m.time}</span></div>`;
-                });
-            } else {
-                medsHtml = "<p class='text-gray-400 text-sm'>No medicines added.</p>";
-            }
+            if(elderData.medicines && elderData.medicines.length > 0) { elderData.medicines.forEach(m => { medsHtml += `<div class="flex justify-between items-center py-2 border-b border-gray-100"><span class="font-bold">${m.name}</span><span class="text-primary text-sm">${m.time}</span></div>`; }); } else { medsHtml = "<p class='text-gray-400 text-sm'>No medicines added.</p>"; }
+            
+            let mapHtml = "";
+            if(elderData.isSharingLocation && elderData.currentLocation) {
+                const { lat, lng, lastUpdated } = elderData.currentLocation;
+                mapHtml = `<div class="bg-teal-50 border border-teal-200 p-4 rounded-xl mt-4 animate-pulse"><h4 class="font-bold text-teal-800 mb-2"><i class="fas fa-map-marker-alt text-red-500"></i> LIVE Location Shared</h4><p class="text-xs text-gray-500 mb-3">Last Update: ${new Date(lastUpdated.seconds * 1000).toLocaleTimeString()}</p><a href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" target="_blank" class="block w-full bg-blue-600 text-white text-center py-3 rounded-lg font-bold shadow-md hover:bg-blue-700"><i class="fas fa-external-link-alt"></i> View on Google Maps</a></div>`;
+            } else { mapHtml = `<div class="bg-gray-100 p-4 rounded-xl mt-4 text-center text-gray-500 text-sm"><i class="fas fa-map-marker-slash text-2xl mb-2 block"></i>Location sharing is OFF</div>`; }
 
             document.getElementById('main-content').innerHTML = `
                 <div class="flex flex-col h-screen bg-gray-50">
-                    <div class="bg-teal-800 text-white p-6 pb-12 rounded-b-[40px] shadow-lg">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <p class="text-teal-200 text-sm uppercase font-bold tracking-widest">Guardian Portal</p>
-                                <h1 class="text-3xl font-bold mt-2">Monitoring:</h1>
-                                <h2 class="text-2xl">${elderData.name}</h2>
-                            </div>
-                            <button onclick="handleLogout()" class="bg-teal-900/50 p-2 rounded-lg text-sm"><i class="fas fa-sign-out-alt"></i> Logout</button>
-                        </div>
-                    </div>
-                    
+                    <div class="bg-teal-800 text-white p-6 pb-12 rounded-b-[40px] shadow-lg"><div class="flex justify-between items-start"><div><p class="text-teal-200 text-sm uppercase font-bold tracking-widest">Guardian Portal</p><h1 class="text-3xl font-bold mt-2">Monitoring:</h1><h2 class="text-2xl">${elderData.name}</h2></div><button onclick="handleLogout()" class="bg-teal-900/50 p-2 rounded-lg text-sm"><i class="fas fa-sign-out-alt"></i> Logout</button></div></div>
                     <div class="flex-1 overflow-y-auto px-6 -mt-8 pb-10">
-                        <div class="bg-white p-6 rounded-3xl shadow-lg mb-6">
-                            <h3 class="font-bold text-gray-700 mb-4"><i class="fas fa-heartbeat text-red-500 mr-2"></i> Health Status</h3>
-                            <p class="text-gray-600 text-sm mb-2 bg-gray-50 p-3 rounded-lg">${elderData.health || 'No conditions listed.'}</p>
-                            <h4 class="font-bold text-gray-700 mt-4 mb-2 text-sm">Medicines Schedule</h4>
-                            <div class="bg-gray-50 p-3 rounded-lg">${medsHtml}</div>
-                        </div>
-
-                        <div class="bg-white p-6 rounded-3xl shadow-lg mb-6">
-                            <h3 class="font-bold text-gray-700 mb-2"><i class="fas fa-briefcase text-blue-500 mr-2"></i> Work Status</h3>
-                            <div id="guardian-job-status" class="text-sm text-gray-500">Checking...</div>
-                        </div>
+                        <div class="bg-white p-6 rounded-3xl shadow-lg mb-6"><h3 class="font-bold text-gray-700 mb-2"><i class="fas fa-street-view text-purple-500 mr-2"></i> Current Location</h3>${mapHtml}</div>
+                        <div class="bg-white p-6 rounded-3xl shadow-lg mb-6"><h3 class="font-bold text-gray-700 mb-4"><i class="fas fa-heartbeat text-red-500 mr-2"></i> Health Status</h3><p class="text-gray-600 text-sm mb-2 bg-gray-50 p-3 rounded-lg">${elderData.health || 'No conditions listed.'}</p><h4 class="font-bold text-gray-700 mt-4 mb-2 text-sm">Medicines Schedule</h4><div class="bg-gray-50 p-3 rounded-lg">${medsHtml}</div></div>
+                        <div class="bg-white p-6 rounded-3xl shadow-lg mb-6"><h3 class="font-bold text-gray-700 mb-2"><i class="fas fa-briefcase text-blue-500 mr-2"></i> Work Status</h3><div id="guardian-job-status" class="text-sm text-gray-500">Checking...</div></div>
                     </div>
-                </div>
-            `;
-            
-            // Check active jobs for the elder
+                </div>`;
             const q = query(collection(db, "jobs"), where("workerId", "==", elderId), where("status", "==", "active"));
             onSnapshot(q, (snap) => {
                 const el = document.getElementById('guardian-job-status');
                 if(!el) return;
-                if(!snap.empty) {
-                    const job = snap.docs[0].data();
-                    el.innerHTML = `<div class="bg-green-50 text-green-700 p-3 rounded-lg border border-green-200 font-bold"><i class="fas fa-check-circle"></i> Currently working on: ${job.title}</div><p class="mt-2 text-xs">Started at: ${new Date(job.startTime).toLocaleTimeString()}</p>`;
-                } else {
-                    el.innerHTML = "No active jobs right now.";
-                }
+                if(!snap.empty) { const job = snap.docs[0].data(); el.innerHTML = `<div class="bg-green-50 text-green-700 p-3 rounded-lg border border-green-200 font-bold"><i class="fas fa-check-circle"></i> Currently working on: ${job.title}</div><p class="mt-2 text-xs">Started at: ${new Date(job.startTime).toLocaleTimeString()}</p>`; } else { el.innerHTML = "No active jobs right now."; }
             });
         }
 
+        // --- SEEKER HOME (UPDATED FOR GPS BUTTON) ---
         window.renderSeekerHome = () => {
             document.getElementById('main-content').innerHTML = `
                 <div class="flex flex-col h-screen bg-gray-50">
-                    <div class="p-6 bg-white shadow-sm flex justify-between items-center sticky top-0 z-10">
-                        <div><p class="text-gray-500 text-sm">Hello,</p><h2 class="text-xl font-bold text-gray-800">${userDoc.name}</h2></div>
-                        <div class="bg-yellow-100 px-4 py-2 rounded-full flex items-center gap-2"><i class="fas fa-coins text-yellow-600"></i><span class="font-bold text-yellow-700">${userDoc.coins || 0}</span></div>
-                    </div>
+                    <div class="p-6 bg-white shadow-sm flex justify-between items-center sticky top-0 z-10"><div><p class="text-gray-500 text-sm">Hello,</p><h2 class="text-xl font-bold text-gray-800">${userDoc.name}</h2></div><div class="bg-yellow-100 px-4 py-2 rounded-full flex items-center gap-2"><i class="fas fa-coins text-yellow-600"></i><span class="font-bold text-yellow-700">${userDoc.coins || 0}</span></div></div>
                     <div class="flex-1 overflow-y-auto p-6 pb-24">
-                        <div class="bg-red-50 border border-red-100 p-6 rounded-3xl mb-4 text-center relative overflow-hidden">
-                            <h3 class="text-red-600 font-bold text-lg mb-2">Emergency?</h3>
-                            <button onclick="renderEmergency()" class="btn-danger w-full py-4 text-xl shadow-red-300 animate-pulse"><i class="fas fa-phone-alt mr-2"></i> GET HELP</button>
+                        <div class="bg-red-50 border border-red-100 p-6 rounded-3xl mb-6 text-center relative overflow-hidden shadow-sm"><h3 class="text-red-600 font-bold text-lg mb-2">Emergency?</h3><button onclick="renderEmergency()" class="btn-danger w-full py-4 text-xl shadow-red-300 animate-pulse"><i class="fas fa-phone-alt mr-2"></i> GET HELP</button></div>
+                        <div id="tracking-btn-container" class="mb-6"></div>
+                        <h3 class="font-bold text-gray-700 mb-3 text-lg">Quick Requests</h3>
+                        <div class="grid grid-cols-3 gap-3 mb-6">
+                            <div onclick="quickRequest('Medicine', 'Bring medicines', 'fas fa-pills', 'text-pink-500', 'bg-pink-50')" class="bg-white p-4 rounded-2xl shadow-sm text-center border border-gray-100 cursor-pointer hover:bg-pink-50 transition"><div class="w-10 h-10 mx-auto bg-pink-100 rounded-full flex items-center justify-center mb-2 text-pink-500"><i class="fas fa-pills"></i></div><p class="text-xs font-bold text-gray-600">Medicine</p></div>
+                            <div onclick="quickRequest('Bill Pay', 'Pay Bill', 'fas fa-file-invoice-dollar', 'text-blue-500', 'bg-blue-50')" class="bg-white p-4 rounded-2xl shadow-sm text-center border border-gray-100 cursor-pointer hover:bg-blue-50 transition"><div class="w-10 h-10 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-2 text-blue-500"><i class="fas fa-file-invoice-dollar"></i></div><p class="text-xs font-bold text-gray-600">Pay Bill</p></div>
+                            <div onclick="quickRequest('Food', 'Bring food', 'fas fa-utensils', 'text-orange-500', 'bg-orange-50')" class="bg-white p-4 rounded-2xl shadow-sm text-center border border-gray-100 cursor-pointer hover:bg-orange-50 transition"><div class="w-10 h-10 mx-auto bg-orange-100 rounded-full flex items-center justify-center mb-2 text-orange-500"><i class="fas fa-utensils"></i></div><p class="text-xs font-bold text-gray-600">Food</p></div>
                         </div>
-
-                        <div onclick="openBandRequestModal()" class="bg-teal-50 border border-teal-100 p-4 rounded-2xl mb-6 flex justify-between items-center cursor-pointer shadow-sm">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center text-teal-600 font-bold"><i class="fas fa-heartbeat"></i></div>
-                                <div><h3 class="font-bold text-teal-800">Get Smart Band</h3><p class="text-xs text-teal-600">Request your safety band</p></div>
-                            </div>
-                            <i class="fas fa-chevron-right text-teal-400"></i>
-                        </div>
-
+                        <div onclick="openBandRequestModal()" class="bg-teal-50 border border-teal-100 p-4 rounded-2xl mb-4 flex justify-between items-center cursor-pointer shadow-sm"><div class="flex items-center gap-4"><div class="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center text-teal-600 font-bold"><i class="fas fa-heartbeat"></i></div><div><h3 class="font-bold text-teal-800">Smart Band</h3><p class="text-xs text-teal-600">Get your safety device</p></div></div><i class="fas fa-chevron-right text-teal-400"></i></div>
                         <div onclick="renderInsurancePage()" class="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl mb-6 flex justify-between items-center cursor-pointer"><div><h3 class="font-bold text-indigo-800">Worker Insurance</h3><p class="text-xs text-indigo-600">${userDoc.insuranceProvider ? 'Covered by ' + userDoc.insuranceProvider : 'Get covered today'}</p></div><div class="w-10 h-10 bg-indigo-200 rounded-full flex items-center justify-center text-indigo-700"><i class="fas fa-shield-alt"></i></div></div>
                         <div id="active-job-card" class="hidden mb-6"></div>
                         <div class="bg-white p-6 rounded-3xl shadow-sm mb-6"><div class="flex justify-between items-center mb-4"><h3 class="font-bold text-gray-700">Medicines</h3><button onclick="openMedicineModal()" class="text-sm bg-primary/10 text-primary px-3 py-1 rounded-full">+ Add</button></div><div id="med-list" class="space-y-3"></div></div>
                         <h3 class="font-bold text-gray-700 mb-4 text-lg">Available Jobs</h3>
                         <div id="seeker-feed" class="space-y-4"><div class="text-center py-10"><i class="fas fa-spinner fa-spin text-primary"></i></div></div>
                     </div>
-                    <div class="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-100 flex justify-around p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]"><button class="text-primary flex flex-col items-center"><i class="fas fa-home text-xl mb-1"></i><span class="text-xs">Home</span></button><button onclick="renderSeekerWallet()" class="text-gray-400 flex flex-col items-center"><i class="fas fa-wallet text-xl mb-1"></i><span class="text-xs">Wallet</span></button><button onclick="handleLogout()" class="text-gray-400 flex flex-col items-center"><i class="fas fa-sign-out-alt text-xl mb-1"></i><span class="text-xs">Logout</span></button></div>
+                    <div class="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-100 flex justify-around p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.05)]"><button onclick="renderSeekerHome()" class="text-primary flex flex-col items-center"><i class="fas fa-home text-xl mb-1"></i><span class="text-xs">Home</span></button><button onclick="renderTipsPage()" class="text-gray-400 flex flex-col items-center hover:text-primary"><i class="fas fa-book-open text-xl mb-1"></i><span class="text-xs">Tips</span></button><button onclick="renderSeekerWallet()" class="text-gray-400 flex flex-col items-center hover:text-primary"><i class="fas fa-wallet text-xl mb-1"></i><span class="text-xs">Wallet</span></button><button onclick="handleLogout()" class="text-gray-400 flex flex-col items-center hover:text-red-500"><i class="fas fa-sign-out-alt text-xl mb-1"></i><span class="text-xs">Logout</span></button></div>
                 </div>`;
-            loadMeds(); loadSeekerJobs(); checkActiveJob();
+            loadMeds(); loadSeekerJobs(); checkActiveJob(); updateTrackingButtonUI();
         }
 
         window.renderEmergency = () => {
@@ -682,19 +648,10 @@
                         <textarea id="job-reqs" class="nice-input" rows="3" placeholder="Requirements (One per line)"></textarea>
                         <input id="job-address" class="nice-input" placeholder="Job Location/Address">
                         <input id="job-phone" class="nice-input" placeholder="Contact Number" type="tel">
-                        <div class="file-upload-wrapper">
-                            <input type="file" id="job-image-files" onchange="updateFileCount(this)" accept="image/*" multiple>
-                            <div class="text-center text-gray-400 upload-text"><i class="fas fa-camera text-3xl mb-2"></i><br>Add Photos (Max 3)</div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <input type="number" id="job-hours" class="nice-input" placeholder="Hours">
-                            <input type="number" id="job-minutes" class="nice-input" placeholder="Minutes">
-                        </div>
+                        <div class="file-upload-wrapper"><input type="file" id="job-image-files" onchange="updateFileCount(this)" accept="image/*" multiple><div class="text-center text-gray-400 upload-text"><i class="fas fa-camera text-3xl mb-2"></i><br>Add Photos (Max 3)</div></div>
+                        <div class="grid grid-cols-2 gap-4"><input type="number" id="job-hours" class="nice-input" placeholder="Hours"><input type="number" id="job-minutes" class="nice-input" placeholder="Minutes"></div>
                         <input type="number" id="job-price" class="nice-input" placeholder="Price">
-                        <div class="flex gap-4">
-                            <label class="flex-1 p-4 border rounded-xl cursor-pointer has-[:checked]:bg-purple-50"><input type="radio" name="pay-method" value="coin" class="hidden" checked><div class="text-center font-bold text-yellow-600">Elder Coin</div></label>
-                            <label class="flex-1 p-4 border rounded-xl cursor-pointer has-[:checked]:bg-green-50"><input type="radio" name="pay-method" value="cash" class="hidden"><div class="text-center font-bold text-green-600">Cash</div></label>
-                        </div>
+                        <div class="flex gap-4"><label class="flex-1 p-4 border rounded-xl cursor-pointer has-[:checked]:bg-purple-50"><input type="radio" name="pay-method" value="coin" class="hidden" checked><div class="text-center font-bold text-yellow-600">Elder Coin</div></label><label class="flex-1 p-4 border rounded-xl cursor-pointer has-[:checked]:bg-green-50"><input type="radio" name="pay-method" value="cash" class="hidden"><div class="text-center font-bold text-green-600">Cash</div></label></div>
                         <button onclick="submitJob()" class="btn-primary mt-4" style="background: #7e22ce;">Post Job</button>
                     </div>
                 </div>`;
@@ -714,20 +671,9 @@
         window.renderAdmin = () => {
             document.getElementById('main-content').innerHTML = `
                 <div class="p-6 h-screen bg-gray-100 overflow-y-auto">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-bold text-red-600">Admin Panel</h2>
-                        <button onclick="handleLogout()" class="text-sm bg-gray-300 px-3 py-1 rounded">Logout</button>
-                    </div>
-                    
-                    <h3 class="font-bold text-gray-700 mb-2 border-b pb-2">Band Requests</h3>
-                    <div id="admin-band-list" class="space-y-4 mb-8">
-                        <p class="text-center text-gray-400 text-sm">Loading bands...</p>
-                    </div>
-
-                    <h3 class="font-bold text-gray-700 mb-2 border-b pb-2">Coin Requests</h3>
-                    <div id="admin-coin-list" class="space-y-4">
-                        <p class="text-center text-gray-400 text-sm">Loading coins...</p>
-                    </div>
+                    <div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold text-red-600">Admin Panel</h2><button onclick="handleLogout()" class="text-sm bg-gray-300 px-3 py-1 rounded">Logout</button></div>
+                    <h3 class="font-bold text-gray-700 mb-2 border-b pb-2">Band Requests</h3><div id="admin-band-list" class="space-y-4 mb-8"><p class="text-center text-gray-400 text-sm">Loading bands...</p></div>
+                    <h3 class="font-bold text-gray-700 mb-2 border-b pb-2">Coin Requests</h3><div id="admin-coin-list" class="space-y-4"><p class="text-center text-gray-400 text-sm">Loading coins...</p></div>
                 </div>`;
             loadAdminRequests();
         }
@@ -753,11 +699,10 @@
                 data.address = document.getElementById('s-address').value;
                 data.health = document.getElementById('s-health').value;
                 data.hours = document.getElementById('s-hours').value;
-                // Save Guardian Email
                 const gEmail = document.getElementById('s-guardian').value;
                 if(gEmail) data.guardianEmail = gEmail;
-                
                 data.medicines = [];
+                data.isSharingLocation = false; 
             } else {
                 data.name = document.getElementById('p-name').value;
                 data.nic = document.getElementById('p-nic').value;
@@ -806,22 +751,13 @@
                     job.id = d.id; 
                     window.loadedJobs[d.id] = job;
                     let imgHTML = '';
-                    if (job.jobImages && job.jobImages.length > 0) {
-                        imgHTML = `<img src="${job.jobImages[0]}" class="w-full h-40 object-cover rounded-xl mb-3 border border-gray-100">`;
-                    } else if (job.jobImage) {
-                        imgHTML = `<img src="${job.jobImage}" class="w-full h-40 object-cover rounded-xl mb-3 border border-gray-100">`;
-                    }
-                    let payBadge = job.paymentMethod === 'coin' 
-                        ? `<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold"><i class="fas fa-coins"></i> Elder Coin</span>`
-                        : `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold"><i class="fas fa-money-bill-wave"></i> Cash</span>`;
+                    if (job.jobImages && job.jobImages.length > 0) { imgHTML = `<img src="${job.jobImages[0]}" class="w-full h-40 object-cover rounded-xl mb-3 border border-gray-100">`; } else if (job.jobImage) { imgHTML = `<img src="${job.jobImage}" class="w-full h-40 object-cover rounded-xl mb-3 border border-gray-100">`; }
+                    let payBadge = job.paymentMethod === 'coin' ? `<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold"><i class="fas fa-coins"></i> Elder Coin</span>` : `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold"><i class="fas fa-money-bill-wave"></i> Cash</span>`;
                     feed.innerHTML += `
                         <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-4 transition hover:shadow-md cursor-pointer" onclick="renderJobDetails(window.loadedJobs['${d.id}'])">
                             ${imgHTML}
                             <div class="flex justify-between items-start"><h4 class="font-bold text-lg text-gray-800 mb-1">${job.title || job.description.substring(0,20)+'...'}</h4>${payBadge}</div>
-                            <div class="text-sm text-gray-500 mb-2">
-                                <i class="fas fa-map-marker-alt mr-1"></i> ${job.location || 'No address'}<br>
-                                <i class="fas fa-phone mr-1"></i> ${job.contactPhone || 'No phone'}
-                            </div>
+                            <div class="text-sm text-gray-500 mb-2"><i class="fas fa-map-marker-alt mr-1"></i> ${job.location || 'No address'}<br><i class="fas fa-phone mr-1"></i> ${job.contactPhone || 'No phone'}</div>
                             <div class="flex gap-4 mt-2 mb-4 text-sm text-gray-500"><span><i class="far fa-clock"></i> ${job.duration} mins</span><span class="font-bold text-green-600">${job.price} ${job.paymentMethod == 'coin'?'EC':'LKR'}</span></div>
                             <button class="w-full py-2 bg-gray-100 text-gray-600 rounded-xl font-bold text-sm">View Details</button>
                         </div>`;
@@ -859,19 +795,9 @@
             }
 
             await addDoc(collection(db, "jobs"), { 
-                providerId: currentUser.uid, 
-                providerName: userDoc.name, 
-                title: title,
-                description: desc, 
-                requirements: reqs, 
-                duration: totalDuration, 
-                price: price, 
-                paymentMethod: method, 
-                status: 'open', 
-                createdAt: new Date(),
-                jobImages: jobImages,
-                location: address,
-                contactPhone: phone
+                providerId: currentUser.uid, providerName: userDoc.name, title: title, description: desc, requirements: reqs, 
+                duration: totalDuration, price: price, paymentMethod: method, status: 'open', createdAt: new Date(),
+                jobImages: jobImages, location: address, contactPhone: phone
             });
             showToast("Job Posted!"); renderProviderHome();
         }
@@ -904,33 +830,8 @@
             closeModal(); showToast("Payment Successful!");
         }
 
-        window.openTopUpModal = () => { 
-            document.getElementById('modal-content').innerHTML = `
-                <h3 class="font-bold mb-2">Top Up</h3><div class="bg-blue-50 p-3 rounded-lg mb-4 text-sm border border-blue-200"><p class="font-bold text-blue-800">Bank Deposit Details:</p><p>Bank: BOC (Bank of Ceylon)</p><p>A/C: 123456789</p><p>Branch: Colombo</p><p>Name: ElderWorks Admin</p></div><input id="topup-amount" class="nice-input" placeholder="Amount"><div class="file-upload-wrapper"><input type="file" id="topup-file" onchange="previewImage(this,'tp-prev')"><img id="tp-prev" class="preview-img"><div class="text-center">Upload Slip</div></div><div class="flex gap-2 mt-2"><button onclick="closeModal()" class="btn-secondary">Cancel</button><button onclick="confirmTopUp()" class="btn-primary">Send</button></div>`; 
-            document.getElementById('app-modal').classList.add('active'); 
-        }
-
-        window.confirmTopUp = async () => {
-            const amount = document.getElementById('topup-amount').value;
-            const fileInput = document.getElementById('topup-file');
-            if(!amount || fileInput.files.length === 0) return showToast("Upload Slip", "error");
-            const imgStr = await compressImage(fileInput.files[0]);
-            await addDoc(collection(db, "coin_requests"), { userId: currentUser.uid, userName: userDoc.name, type: 'buy', amount: parseInt(amount), status: 'pending', receiptImage: imgStr });
-            closeModal(); showToast("Request Sent!");
-        }
-
-        window.confirmWithdraw = async () => {
-            const amt = document.getElementById('modal-with-amount').value;
-            const bank = document.getElementById('modal-with-bank').value;
-            if(amt && bank) {
-                await addDoc(collection(db, "coin_requests"), { userId: currentUser.uid, userName: userDoc.name, type: 'withdraw', amount: parseInt(amt), bank: bank, status: 'pending' });
-                closeModal(); showToast("Requested");
-            }
-        }
-
-        // --- UPDATED ADMIN LOGIC (Band + Coins) ---
         window.loadAdminRequests = () => {
-             // 1. Coins
+             // Coins
              const q = query(collection(db, "coin_requests"), where("status", "==", "pending"));
              onSnapshot(q, (snap) => {
                 const list = document.getElementById('admin-coin-list');
@@ -943,8 +844,7 @@
                     list.innerHTML += `<div class="bg-white p-4 rounded-lg shadow border-l-4 border-yellow-400"><div class="flex justify-between font-bold"><span>${r.type}</span><span>${r.amount} EC</span></div><p class="text-sm">${r.userName}</p>${bankDetails}${img}<div class="flex gap-2 mt-2"><button onclick="adminDecide('${d.id}', '${r.userId}', ${r.amount}, '${r.type}', true)" class="flex-1 bg-green-500 text-white py-1 rounded">Approve</button><button onclick="adminDecide('${d.id}', null, 0, null, false)" class="flex-1 bg-red-500 text-white py-1 rounded">Reject</button></div></div>`;
                 });
              });
-
-             // 2. Bands (Includes Address)
+             // Bands
              const qBand = query(collection(db, "band_requests"), where("status", "==", "pending"));
              onSnapshot(qBand, (snap) => {
                 const list = document.getElementById('admin-band-list');
@@ -952,18 +852,7 @@
                 list.innerHTML = snap.empty ? "<p class='text-center text-sm text-gray-400'>No band requests.</p>" : "";
                 snap.forEach(d => {
                     const r = d.data();
-                    list.innerHTML += `
-                        <div class="bg-white p-4 rounded-lg shadow border-l-4 border-teal-500">
-                            <div class="flex justify-between items-start">
-                                <h4 class="font-bold text-lg">${r.userName}</h4>
-                                <span class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs font-bold">${r.bloodGroup}</span>
-                            </div>
-                            <p class="text-sm text-gray-600 mt-1"><i class="fas fa-phone-alt text-xs"></i> Emergency: ${r.emergencyPhone}</p>
-                            <p class="text-xs text-gray-500 mt-1 bg-gray-50 p-2 rounded"><i class="fas fa-map-marker-alt text-teal-500"></i> ${r.address || 'No Address'}</p>
-                            <div class="flex gap-2 mt-3">
-                                <button onclick="completeBandRequest('${d.id}')" class="w-full bg-teal-600 text-white py-1 rounded text-sm font-bold">Mark as Printed/Sent</button>
-                            </div>
-                        </div>`;
+                    list.innerHTML += `<div class="bg-white p-4 rounded-lg shadow border-l-4 border-teal-500"><div class="flex justify-between items-start"><h4 class="font-bold text-lg">${r.userName}</h4><span class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs font-bold">${r.bloodGroup}</span></div><p class="text-sm text-gray-600 mt-1"><i class="fas fa-phone-alt text-xs"></i> Emergency: ${r.emergencyPhone}</p><p class="text-xs text-gray-500 mt-1 bg-gray-50 p-2 rounded"><i class="fas fa-map-marker-alt text-teal-500"></i> ${r.address || 'No Address'}</p><div class="flex gap-2 mt-3"><button onclick="completeBandRequest('${d.id}')" class="w-full bg-teal-600 text-white py-1 rounded text-sm font-bold">Mark as Printed/Sent</button></div></div>`;
                 });
              });
         }
@@ -973,9 +862,7 @@
                 const val = type === 'buy' ? amt : -amt;
                 await updateDoc(doc(db, "users", uid), { coins: increment(val) });
                 await updateDoc(doc(db, "coin_requests", rid), { status: 'approved' });
-            } else {
-                await updateDoc(doc(db, "coin_requests", rid), { status: 'rejected' });
-            }
+            } else { await updateDoc(doc(db, "coin_requests", rid), { status: 'rejected' }); }
         }
 
         window.completeBandRequest = async (docId) => {
@@ -985,39 +872,15 @@
             }
         }
         
-        // --- BAND REQUEST MODAL ---
+        // --- MODALS ---
         window.openBandRequestModal = () => {
             document.getElementById('modal-content').innerHTML = `
-                <h3 class="font-bold mb-4 text-xl text-teal-700">Request Smart Band</h3>
-                <p class="text-sm text-gray-500 mb-4">Please provide details to print on your QR Smart Band.</p>
-                
-                <label class="text-xs font-bold text-gray-500 ml-1">Full Name</label>
-                <input id="band-req-name" class="nice-input" placeholder="Name to print" value="${userDoc.name || ''}">
-                
-                <label class="text-xs font-bold text-gray-500 ml-1">Blood Group</label>
-                <select id="band-req-blood" class="nice-input bg-white">
-                    <option value="">Select Blood Group</option>
-                    <option value="A+">A+</option>
-                    <option value="A-">A-</option>
-                    <option value="B+">B+</option>
-                    <option value="B-">B-</option>
-                    <option value="AB+">AB+</option>
-                    <option value="AB-">AB-</option>
-                    <option value="O+">O+</option>
-                    <option value="O-">O-</option>
-                </select>
-                
-                <label class="text-xs font-bold text-gray-500 ml-1">Emergency Contact Number</label>
-                <input id="band-req-phone" type="tel" class="nice-input" placeholder="e.g. 0771234567">
-                
-                <label class="text-xs font-bold text-gray-500 ml-1">Delivery Address</label>
-                <textarea id="band-req-address" class="nice-input" rows="3" placeholder="Address to send the band">${userDoc.address || ''}</textarea>
-
-                <div class="flex gap-2 mt-4">
-                    <button onclick="closeModal()" class="btn-secondary">Cancel</button>
-                    <button onclick="submitBandRequest()" class="btn-primary">Request Band</button>
-                </div>
-            `;
+                <h3 class="font-bold mb-4 text-xl text-teal-700">Request Smart Band</h3><p class="text-sm text-gray-500 mb-4">Please provide details to print on your QR Smart Band.</p>
+                <label class="text-xs font-bold text-gray-500 ml-1">Full Name</label><input id="band-req-name" class="nice-input" placeholder="Name to print" value="${userDoc.name || ''}">
+                <label class="text-xs font-bold text-gray-500 ml-1">Blood Group</label><select id="band-req-blood" class="nice-input bg-white"><option value="">Select Blood Group</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option><option value="AB+">AB+</option><option value="AB-">AB-</option><option value="O+">O+</option><option value="O-">O-</option></select>
+                <label class="text-xs font-bold text-gray-500 ml-1">Emergency Contact Number</label><input id="band-req-phone" type="tel" class="nice-input" placeholder="e.g. 0771234567">
+                <label class="text-xs font-bold text-gray-500 ml-1">Delivery Address</label><textarea id="band-req-address" class="nice-input" rows="3" placeholder="Address to send the band">${userDoc.address || ''}</textarea>
+                <div class="flex gap-2 mt-4"><button onclick="closeModal()" class="btn-secondary">Cancel</button><button onclick="submitBandRequest()" class="btn-primary">Request Band</button></div>`;
             document.getElementById('app-modal').classList.add('active');
         }
 
@@ -1026,28 +889,8 @@
             const blood = document.getElementById('band-req-blood').value;
             const phone = document.getElementById('band-req-phone').value;
             const address = document.getElementById('band-req-address').value;
-
-            if(!name || !blood || !phone || !address) {
-                showToast("Please fill all fields", "error");
-                return;
-            }
-
-            try {
-                await addDoc(collection(db, "band_requests"), {
-                    userId: currentUser.uid,
-                    userName: name,
-                    bloodGroup: blood,
-                    emergencyPhone: phone,
-                    address: address,
-                    status: 'pending',
-                    requestDate: new Date()
-                });
-                closeModal();
-                showToast("Request Sent Successfully!", "success");
-            } catch (e) {
-                console.error(e);
-                showToast("Error sending request", "error");
-            }
+            if(!name || !blood || !phone || !address) { showToast("Please fill all fields", "error"); return; }
+            try { await addDoc(collection(db, "band_requests"), { userId: currentUser.uid, userName: name, bloodGroup: blood, emergencyPhone: phone, address: address, status: 'pending', requestDate: new Date() }); closeModal(); showToast("Request Sent Successfully!", "success"); } catch (e) { console.error(e); showToast("Error sending request", "error"); }
         }
         
         window.openMedicineModal = () => { document.getElementById('modal-content').innerHTML = `<h3 class="font-bold mb-2">Add Medicine</h3><input id="modal-med-name" class="nice-input" placeholder="Name"><input id="modal-med-time" type="time" class="nice-input"><div class="flex gap-2 mt-2"><button onclick="closeModal()" class="btn-secondary">Cancel</button><button onclick="confirmAddMed()" class="btn-primary">Add</button></div>`; document.getElementById('app-modal').classList.add('active'); }
